@@ -1,5 +1,6 @@
 import os
 
+from epic_py.delta import EpicDataBuilder, TypeHandler
 from epic_py.identity import EpicIdentity
 
 
@@ -24,10 +25,13 @@ AZURE_RESOURCES = {
 }
 
 
+
 app_agent = EpicIdentity.create(server=SERVER, config=SETUP_KEYS[ENV])
 app_resourcer = app_agent.setup_resourcer(AZURE_RESOURCES[ENV])
 
 blob_path = AZURE_RESOURCES[ENV]['blob_path']
+
+falcon_handler = TypeHandler()
 
 
 
