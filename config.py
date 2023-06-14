@@ -2,7 +2,7 @@ import os
 
 from epic_py.delta import EpicDataBuilder, TypeHandler
 from epic_py.identity import EpicIdentity
-from epic_py.delta import EpicDataBuilder, TypeHandler
+
 
 ## Infrastructure resources are defined here. 
 SETUP_KEYS = {
@@ -12,13 +12,24 @@ SETUP_KEYS = {
             'client_secret'  : 'sp-core-events-secret',         #'QAS_SP_SECRET', 
             'subscription_id': 'sp-core-events-suscription',    #'QAS_SP_SUBSTN', 
             'tenant_id'      : 'aad-tenant-id'},                #'AAD_TENANT'},
-        'databricks-scope': 'eh-core-banking'}
+        'databricks-scope': 'eh-core-banking'}, 
+    'prd': {
+        'service-principal': {
+            'client_id'      : 'sp-collections-client', # 
+            'client_secret'  : 'sp-collections-secret', #          
+            'subscription_id': 'sp-collections-subscription', # 
+            'tenant_id'      : 'aad-tenant-id'}, 
+        'databricks-scope': 'eh-core-banking'},  # kv-zoras
 }
 
 AZURE_RESOURCES = {
     'qas': {
         'keyvault' : 'kv-cx-data-qas',
         'storage'  : 'stglakehyliaqas', 
+        'blob_path': "ops/fraud-prevention"}, 
+    'prd': {
+        'keyvault' : 'kv-cx-data-prd',
+        'storage'  : 'stglakehyliaprd', 
         'blob_path': "ops/fraud-prevention"}
 }
 
@@ -34,8 +45,6 @@ SERVER = os.getenv('SERVER_TYPE')
 
 app_agent = EpicIdentity.create(server=SERVER, config=SETUP_KEYS[ENV])
 app_resourcer = app_agent.setup_resourcer(AZURE_RESOURCES[ENV])
-
-blob_path = AZURE_RESOURCES[ENV]['blob_path']
 
 dbks_tables = DBKS_MAPPING
 

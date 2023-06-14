@@ -15,11 +15,14 @@
 
 # COMMAND ----------
 
+# MAGIC %pip install --upgrade numpy==1.24.3
+
+# COMMAND ----------
+
 ### Celda para algunos ajustes en desarrollo. 
 
 # Recargar los módulos que modificamos manualmente. 
 # Es equivalente a:
-# %load autoreload
 # %load_ext autoreload; autoreload 2
 from importlib import reload
 import config; reload(config)   
@@ -37,21 +40,21 @@ from toolz.dicttoolz import valmap
 from epic_py.delta import column_name
 from config import falcon_handler
 
-class TimestampHandler(): 
-    def __init__(self, **kwargs): 
-        self.spark_type = T.TimestampType
-        self.NA = kwargs.get('NA', None)
-        self.NA_str = kwargs.get('NA_str', '')
-        self.c_format = kwargs.get('c_format', '%8d')
-        self.ts_format = kwargs.get('ts_format', 'HHmmss')
+# class TimestampHandler(): 
+#     def __init__(self, **kwargs): 
+#         self.spark_type = T.TimestampType
+#         self.NA = kwargs.get('NA', None)
+#         self.NA_str = kwargs.get('NA_str', '')
+#         self.c_format = kwargs.get('c_format', '%8d')
+#         self.ts_format = kwargs.get('ts_format', 'HHmmss')
 
-    def fixed_width_string(self, col:Column): 
-        x_column = (F.when(col.isNull(), F.lit(self.NA_str)) 
-            .otherwise(F.date_format(col, self.ts_format)))
-        return x_column
+#     def fixed_width_string(self, col:Column): 
+#         x_column = (F.when(col.isNull(), F.lit(self.NA_str)) 
+#             .otherwise(F.date_format(col, self.ts_format)))
+#         return x_column
 
-falcon_handler.add_handler('ts', TimestampHandler(**{}))
-falcon_handler['date'].spark_type = T.DateType
+# falcon_handler.add_handler('ts', TimestampHandler(**{}))
+# falcon_handler['date'].spark_type = T.DateType
 
 # COMMAND ----------
 
@@ -59,11 +62,17 @@ from datetime import datetime as dt, date
 import pandas as pd
 from pytz import timezone
 
-from epic_py.delta import EpicDF, EpicDataBuilder #, TypeHandler
+from epic_py.delta import EpicDF, EpicDataBuilder
 from epic_py.identity import EpicIdentity
-from config import falcon_handler, falcon_rename, dbks_tables, blob_path
 
+from config import (app_agent, app_resourcer, 
+    falcon_handler, falcon_rename, dbks_tables)
 
+storage = app_resourcer['storage']
+stg_permissions = app_agent.prep_dbks_permissions(storage, 'gen2')
+app_resourcer.set_dbks_permissions(stg_permissions)
+
+gold_path = app_resourcer.get_resource_url('abfss', 'storage', container='gold')
 falcon_builder = EpicDataBuilder(typehandler=falcon_handler)
 
 def check_builder(build_dict): 
@@ -75,7 +84,6 @@ def check_builder(build_dict):
     else: 
         print(f"Builder needs JOIN(s).\n{check_keys}.")
     return
-
 
 def get_time(tz="America/Mexico_City", time_fmt="%Y-%m-%d"): 
     return dt.now(tz=timezone(tz)).strftime(format=time_fmt)
@@ -111,9 +119,13 @@ customers_2 = (customers_1
 
 customers_3 = customers_2.select(customers_onecol)
 
-customers_3.save_as_file(f"{blob_path}/reports/customers/",
-    f"{blob_path}/reports/customers/{cust_time}.csv")
+customers_3.save_as_file(f"{gold_path}/reports/customers/{cust_time}.csv", 
+    f"{gold_path}/reports/customers/tmp_delta")
 
+
+# COMMAND ----------
+
+customers_3.display()
 
 # COMMAND ----------
 
@@ -142,13 +154,13 @@ accounts_1 = (EpicDF(accounts_0)
 accounts_2 = accounts_1.select(accounts_loader)
 accounts_3 = accounts_2.select(accounts_onecol)
 
-accounts_3.display()
+accounts_3.save_as_file(f"{gold_path}/reports/accounts/{acct_time}.csv", 
+    f"{gold_path}/reports/accounts/tmp_delta/")
 
 
 # COMMAND ----------
 
-accounts_3.save_as_file(f"{blob_path}/reports/accounts/",
-    f"{blob_path}/reports/accounts/{acct_time}.csv")
+accounts_3.display()
 
 # COMMAND ----------
 
@@ -180,3 +192,12 @@ payments_2 = payments_1.select(payments_loader)
 payments_3 = payments_2.select(payments_onecol)
 
 payments_3.display()
+
+# COMMAND ----------
+
+# MAGIC %md 
+# MAGIC ## Find My Files
+
+# COMMAND ----------
+
+
