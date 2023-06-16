@@ -21,15 +21,13 @@ AZURE_RESOURCES = {
     'qas': {
         'keyvault' : 'kv-cx-data-qas',
         'storage'  : 'stglakehyliaqas', 
-        'blob_path': "ops/fraud-prevention"}
+        'blob_path': 'ops/fraud-prevention'}
 }
-
 
 
 app_agent = EpicIdentity.create(server=SERVER, config=SETUP_KEYS[ENV])
 app_resourcer = app_agent.setup_resourcer(AZURE_RESOURCES[ENV])
 
-blob_path = AZURE_RESOURCES[ENV]['blob_path']
 
 falcon_handler = TypeHandler()
 

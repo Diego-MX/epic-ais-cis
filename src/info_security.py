@@ -28,8 +28,7 @@ if __name__ == '__main__':
     data_ref = {
         'payments':  'Payment', 
         'accounts':  'Account', 
-        'customers': 'Customer'
-        }
+        'customers': 'Customer'}
 
     a_ref, sheet = 'payments', 'Payment'
     for a_ref, sheet in data_ref.items(): 

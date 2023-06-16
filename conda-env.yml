@@ -1,3 +1,9 @@
+# No usaremos más el ambiente de Conda por proyecto.  
+# Si acaso virtualenv, o simplemente el archivo de requerimientos. 
+#
+# Los ambientes de Conda los gestionamos por tipo de repositorio 
+# en las computadoras de desarrollo. 
+
 channels: 
   - defaults
   - conda-forge
