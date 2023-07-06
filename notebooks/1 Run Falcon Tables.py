@@ -15,23 +15,13 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install --upgrade numpy==1.24.3
-
-# COMMAND ----------
-
 ### Celda para algunos ajustes en desarrollo. 
 
 # Recargar los módulos que modificamos manualmente. 
 # Es equivalente a:
-# %load_ext autoreload; autoreload 2
-from importlib import reload
-import config; reload(config)   
-
-# REF_PATH se usa temporalmente, y por eso se define en el notebook -en vez de CONFIG.PY-
 # La intensión es guardar los archivos en el datalake. 
 from pathlib import Path
 ref_path = Path("../refs/upload-specs")
-
 
 import re
 from pyspark.sql import types as T, functions as F, Row, Column
@@ -40,21 +30,6 @@ from toolz.dicttoolz import valmap
 from epic_py.delta import column_name
 from config import falcon_handler
 
-# class TimestampHandler(): 
-#     def __init__(self, **kwargs): 
-#         self.spark_type = T.TimestampType
-#         self.NA = kwargs.get('NA', None)
-#         self.NA_str = kwargs.get('NA_str', '')
-#         self.c_format = kwargs.get('c_format', '%8d')
-#         self.ts_format = kwargs.get('ts_format', 'HHmmss')
-
-#     def fixed_width_string(self, col:Column): 
-#         x_column = (F.when(col.isNull(), F.lit(self.NA_str)) 
-#             .otherwise(F.date_format(col, self.ts_format)))
-#         return x_column
-
-# falcon_handler.add_handler('ts', TimestampHandler(**{}))
-# falcon_handler['date'].spark_type = T.DateType
 
 # COMMAND ----------
 
@@ -63,17 +38,13 @@ import pandas as pd
 from pytz import timezone
 
 from epic_py.delta import EpicDF, EpicDataBuilder
-from epic_py.identity import EpicIdentity
+from epic_py.platform import EpicIdentity
+from config import (falcon_handler, falcon_rename, 
+    dbks_tables, blob_path)
 
-from config import (app_agent, app_resourcer, 
-    falcon_handler, falcon_rename, dbks_tables)
 
-storage = app_resourcer['storage']
-stg_permissions = app_agent.prep_dbks_permissions(storage, 'gen2')
-app_resourcer.set_dbks_permissions(stg_permissions)
-
-gold_path = app_resourcer.get_resource_url('abfss', 'storage', container='gold')
 falcon_builder = EpicDataBuilder(typehandler=falcon_handler)
+
 
 def check_builder(build_dict): 
     check_keys = list(x for x in build_dict.keys() if x not in ['_val', 'None'])
@@ -84,6 +55,7 @@ def check_builder(build_dict):
     else: 
         print(f"Builder needs JOIN(s).\n{check_keys}.")
     return
+
 
 def get_time(tz="America/Mexico_City", time_fmt="%Y-%m-%d"): 
     return dt.now(tz=timezone(tz)).strftime(format=time_fmt)
@@ -101,26 +73,30 @@ cust_time = get_time()
 customers_specs = (pd.read_feather(ref_path/'customers_cols.feather')
         .rename(columns=falcon_rename))
 
+name_onecol = '~'.join(f"{nm}-{ln}" for nm, ln in zip(
+    customers_specs['name'], customers_specs['len'].astype('int')))
+
 customers_extract = falcon_builder.get_extract(customers_specs, 'delta')
 customers_loader = falcon_builder.get_loader(customers_specs, 'fixed-width')
 customers_onecol = (F.concat(*customers_specs['name'].values)
-    .alias('one-column'))
+    .alias(name_onecol))
 
-customers_0 = spark.table(dbks_tables['gld_client_file'])
-
-customers_1 = (EpicDF(customers_0)
+customers_0 = EpicDF(spark.read.table(dbks_tables['gld_client_file']))
+customers_1 = (customers_0
     .select([vv.alias(kk) 
         for kk, vv in customers_extract['gld_client_file'].items()])
     .with_column_plus(customers_extract['_val'])
     .with_column_plus(customers_extract['None']))
 
-customers_2 = (customers_1
-    .select(customers_loader))
+customers_2 = (customers_1.select(customers_loader))
+
+customers_2.display()
 
 customers_3 = customers_2.select(customers_onecol)
 
-customers_3.save_as_file(f"{gold_path}/reports/customers/{cust_time}.csv", 
-    f"{gold_path}/reports/customers/tmp_delta")
+customers_3.save_as_file(
+    f"{blob_path}/reports/customers/tmp_delta",
+    f"{blob_path}/reports/customers/{cust_time}.csv", )
 
 
 # COMMAND ----------
@@ -138,10 +114,13 @@ acct_time = get_time()
 accounts_specs = (pd.read_feather(ref_path/'accounts_cols.feather')
         .rename(columns=falcon_rename))
 
+onecol_account = '~'.join(f"{nm}-{ln}" 
+    for nm, ln in zip(accounts_specs['name'], accounts_specs['len'].astype('int')))
+
 accounts_extract = falcon_builder.get_extract(accounts_specs, 'delta')
 accounts_loader = falcon_builder.get_loader(accounts_specs, 'fixed-width')
 accounts_onecol = (F.concat(*accounts_specs['name'].values)
-    .alias('one-column'))
+    .alias(onecol_account))
 
 accounts_0 = spark.table(dbks_tables['gld_cx_collections_loans'])
 
@@ -152,10 +131,12 @@ accounts_1 = (EpicDF(accounts_0)
     .with_column_plus(accounts_extract['None']))
 
 accounts_2 = accounts_1.select(accounts_loader)
+
+accounts_2.display()
 accounts_3 = accounts_2.select(accounts_onecol)
 
-accounts_3.save_as_file(f"{gold_path}/reports/accounts/{acct_time}.csv", 
-    f"{gold_path}/reports/accounts/tmp_delta/")
+accounts_3.save_as_file(f"{blob_path}/reports/accounts/tmp_delta", 
+    f"{blob_path}/reports/accounts/{acct_time}.csv")
 
 
 # COMMAND ----------
@@ -192,12 +173,3 @@ payments_2 = payments_1.select(payments_loader)
 payments_3 = payments_2.select(payments_onecol)
 
 payments_3.display()
-
-# COMMAND ----------
-
-# MAGIC %md 
-# MAGIC ## Find My Files
-
-# COMMAND ----------
-
-
