@@ -1,7 +1,7 @@
 import os
 
 from epic_py.delta import EpicDataBuilder, TypeHandler
-from epic_py.identity import EpicIdentity
+from epic_py.platform import EpicIdentity
 
 
 ## Infrastructure resources are defined here. 
@@ -45,14 +45,17 @@ ENV = os.getenv('ENV_TYPE')
 SERVER = os.getenv('SERVER_TYPE')
 
 app_agent = EpicIdentity.create(server=SERVER, config=SETUP_KEYS[ENV])
-app_resourcer = app_agent.setup_resourcer(AZURE_RESOURCES[ENV])
+app_resourcer = app_agent.get_resourcer(AZURE_RESOURCES[ENV])
 
 dbks_tables = DBKS_MAPPING
+
+blob_path = AZURE_RESOURCES[ENV]['blob_path']
 
 falcon_handler = TypeHandler({
     'int' : {}, 'long': {}, 
     'dbl' : {}, 'str' : {}, 
-    'date': {}, 'ts'  : {}})
+    'date': {'NA_str': ' '*8}, 
+    'ts'  : {'NA_str': ' '*6}})
 
 falcon_rename = {
     'FieldName' : 'name', 

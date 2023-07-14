@@ -15,23 +15,14 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install --upgrade numpy==1.24.3
+# MAGIC %pip install -q git+https://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@github.com/Bineo2/data-python-tools.git@dev-diego
 
 # COMMAND ----------
 
 ### Celda para algunos ajustes en desarrollo. 
 
-# Recargar los módulos que modificamos manualmente. 
-# Es equivalente a:
-# %load_ext autoreload; autoreload 2
-from importlib import reload
-import config; reload(config)   
-
-# REF_PATH se usa temporalmente, y por eso se define en el notebook -en vez de CONFIG.PY-
-# La intensión es guardar los archivos en el datalake. 
 from pathlib import Path
 ref_path = Path("../refs/upload-specs")
-
 
 import re
 from pyspark.sql import types as T, functions as F, Row, Column
@@ -40,39 +31,31 @@ from toolz.dicttoolz import valmap
 from epic_py.delta import column_name
 from config import falcon_handler
 
-# class TimestampHandler(): 
-#     def __init__(self, **kwargs): 
-#         self.spark_type = T.TimestampType
-#         self.NA = kwargs.get('NA', None)
-#         self.NA_str = kwargs.get('NA_str', '')
-#         self.c_format = kwargs.get('c_format', '%8d')
-#         self.ts_format = kwargs.get('ts_format', 'HHmmss')
-
-#     def fixed_width_string(self, col:Column): 
-#         x_column = (F.when(col.isNull(), F.lit(self.NA_str)) 
-#             .otherwise(F.date_format(col, self.ts_format)))
-#         return x_column
-
-# falcon_handler.add_handler('ts', TimestampHandler(**{}))
-# falcon_handler['date'].spark_type = T.DateType
 
 # COMMAND ----------
 
+from copy import deepcopy
 from datetime import datetime as dt, date
 import pandas as pd
 from pytz import timezone
 
+from pyspark.sql import SparkSession
+from pyspark.dbutils import DBUtils
+spark = SparkSession.builder.getOrCreate()
+dbutils = DBUtils(spark)
+
+# COMMAND ----------
+
+from importlib import reload
+import epic_py; reload(epic_py)
+import config ; reload(config)
+
 from epic_py.delta import EpicDF, EpicDataBuilder
-from epic_py.identity import EpicIdentity
+from epic_py.platform import EpicIdentity
+from config import (falcon_handler, falcon_rename, 
+    dbks_tables, blob_path)
 
-from config import (app_agent, app_resourcer, 
-    falcon_handler, falcon_rename, dbks_tables)
 
-storage = app_resourcer['storage']
-stg_permissions = app_agent.prep_dbks_permissions(storage, 'gen2')
-app_resourcer.set_dbks_permissions(stg_permissions)
-
-gold_path = app_resourcer.get_resource_url('abfss', 'storage', container='gold')
 falcon_builder = EpicDataBuilder(typehandler=falcon_handler)
 
 def check_builder(build_dict): 
@@ -88,7 +71,6 @@ def check_builder(build_dict):
 def get_time(tz="America/Mexico_City", time_fmt="%Y-%m-%d"): 
     return dt.now(tz=timezone(tz)).strftime(format=time_fmt)
 
-
 # COMMAND ----------
 
 # MAGIC %md 
@@ -101,31 +83,76 @@ cust_time = get_time()
 customers_specs = (pd.read_feather(ref_path/'customers_cols.feather')
         .rename(columns=falcon_rename))
 
+name_onecol = '~'.join(f"[{int(rr['len'])}]{rr['name']}" 
+    for _, rr in customers_specs.iterrows())
+
 customers_extract = falcon_builder.get_extract(customers_specs, 'delta')
-customers_loader = falcon_builder.get_loader(customers_specs, 'fixed-width')
-customers_onecol = (F.concat(*customers_specs['name'].values)
-    .alias('one-column'))
+customers_loader  = falcon_builder.get_loader(customers_specs, 'fixed-width')
+customers_onecol  = (F.concat(*customers_specs['name'].values)
+    .alias(name_onecol))
 
-customers_0 = spark.table(dbks_tables['gld_client_file'])
-
-customers_1 = (EpicDF(customers_0)
-    .select([vv.alias(kk) 
-        for kk, vv in customers_extract['gld_client_file'].items()])
+customers_1 = (EpicDF(spark, dbks_tables['gld_client_file'])
+    .select_plus(customers_extract['gld_client_file'])
     .with_column_plus(customers_extract['_val'])
     .with_column_plus(customers_extract['None']))
 
-customers_2 = (customers_1
-    .select(customers_loader))
+customers_2 = (customers_1.select_plus(customers_loader))
+customers_2.display()
 
-customers_3 = customers_2.select(customers_onecol)
 
-customers_3.save_as_file(f"{gold_path}/reports/customers/{cust_time}.csv", 
-    f"{gold_path}/reports/customers/tmp_delta")
+
+cust_header = dict(option=True, vendor='fiserv', 
+    data={
+        'record_type'       : 'B', 
+        'filetype'          : 'CIS20', 
+        'system_id'         : 'PMAX', 
+        'data_feed_sort_key': 0, 
+        'layout_ver'        : 1.0, 
+        'filler'            : 1866, 
+        'append'            : -1})
+
+cust_trailer = deepcopy(cust_header)
+cust_trailer['data'].update({
+        'record_type'       : 'E', 
+        'data_feed_sort_key': 10**9-1, 
+        'append'            : 1})
+
+customers_3 = (customers_2
+    .select(customers_onecol)
+    .prep_one_col(header_info=cust_header, trailer_info=cust_trailer))
+
+customers_3.save_as_file(
+    f"{blob_path}/reports/customers/{cust_time}.csv", 
+    f"{blob_path}/reports/customers/tmp_delta", 
+    header=False)
 
 
 # COMMAND ----------
 
 customers_3.display()
+
+# COMMAND ----------
+
+def check_1(rr): 
+    check_col = (F.when(F.length(rr['name']) != F.lit(rr['len']), 
+        F.concat(F.lit(f"{rr['len']}:{{"), F.col(rr['name']), F.lit("}:"), F.length(rr['name'])))
+        .otherwise("ok"))
+    return check_col
+
+check_select = {rr['name']: check_1(rr) for _, rr in customers_specs.iterrows()}
+
+df_check = (customers_2
+    .select_plus(check_select))
+
+count_cols = (df_check
+    .withColumn('group', F.lit(1))
+    .groupBy('group')
+    .agg_plus({rr['name']: F.sum(F.when(F.col(rr['name']) == F.lit('ok'), 0).otherwise(1)) 
+        for _, rr in customers_specs.iterrows()}))
+
+check_cols = [a_col for a_col in df_check.columns if count_cols.first()[a_col] > 0]
+
+df_check.select(*check_cols).display()
 
 # COMMAND ----------
 
@@ -138,25 +165,50 @@ acct_time = get_time()
 accounts_specs = (pd.read_feather(ref_path/'accounts_cols.feather')
         .rename(columns=falcon_rename))
 
+onecol_account = '~'.join(f"{nm}-{ln}" 
+    for nm, ln in zip(accounts_specs['name'], accounts_specs['len'].astype('int')))
+
 accounts_extract = falcon_builder.get_extract(accounts_specs, 'delta')
 accounts_loader = falcon_builder.get_loader(accounts_specs, 'fixed-width')
 accounts_onecol = (F.concat(*accounts_specs['name'].values)
-    .alias('one-column'))
+    .alias(onecol_account))
 
-accounts_0 = spark.table(dbks_tables['gld_cx_collections_loans'])
-
-accounts_1 = (EpicDF(accounts_0)
-    .select([vv.alias(kk) 
-        for kk, vv in accounts_extract['gld_cx_collections_loans'].items()])
+accounts_1 = (EpicDF(spark, dbks_tables['gld_cx_collections_loans'])
+    .select_plus(accounts_extract['gld_cx_collections_loans'])
     .with_column_plus(accounts_extract['_val'])
     .with_column_plus(accounts_extract['None']))
 
-accounts_2 = accounts_1.select(accounts_loader)
-accounts_3 = accounts_2.select(accounts_onecol)
+accounts_1.display()
 
-accounts_3.save_as_file(f"{gold_path}/reports/accounts/{acct_time}.csv", 
-    f"{gold_path}/reports/accounts/tmp_delta/")
+# COMMAND ----------
 
+accounts_2 = accounts_1.select_plus(accounts_loader)
+
+accounts_2.display()
+
+acct_header = dict(option=True, vendor='fiserv', 
+    data={
+        'record_type'       : 'B', 
+        'system_id'         : 'PMAX',
+        'filetype'          : 'AIS20', 
+        'data_feed_sort_key': 0, 
+        'layout_ver'        : 1.0, 
+        'filler'            : 1136, 
+        'append'            : -1})
+acct_trailer = deepcopy(acct_header)
+acct_trailer['data'].update({
+        'record_type'       : 'E', 
+        'data_feed_sort_key': 10**9-1, 
+        'append'            : 1})
+
+accounts_3 = (accounts_2
+    .select(accounts_onecol)
+    .prep_one_col(header_info=acct_header, trailer_info=acct_trailer))
+
+accounts_3.save_as_file(
+    f"{blob_path}/reports/accounts/{acct_time}.csv", 
+    f"{blob_path}/reports/accounts/tmp_delta", 
+    header=False)
 
 # COMMAND ----------
 
@@ -192,12 +244,3 @@ payments_2 = payments_1.select(payments_loader)
 payments_3 = payments_2.select(payments_onecol)
 
 payments_3.display()
-
-# COMMAND ----------
-
-# MAGIC %md 
-# MAGIC ## Find My Files
-
-# COMMAND ----------
-
-
