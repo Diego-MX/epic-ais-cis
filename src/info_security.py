@@ -16,7 +16,7 @@ def prepare_excelref(xls_df: pd.DataFrame):
     type_map = {'int': int, 'dbl': float, 'str': str}
     
     a_df = (xls_df[col_types.index]
-        .astype(col_types.map(type_map)))
+            .astype(col_types.map(type_map)))
     return a_df         
 
 
@@ -35,8 +35,8 @@ if __name__ == '__main__':
         now_str = dt.now(tz=timezone("America/Mexico_City")).strftime("%Y-%m-%d_%H:%M")
 
         ref_file = f"{tmp_path}/{a_ref}_cols.feather"
-        blob_0   = f"{blob_path}/{a_ref}_specs_latest.feather"
-        blob_1   = f"{blob_path}/{a_ref}_specs_{now_str}.feather"
+        blob_0   = f"{blob_path}/specs/{a_ref}_specs_latest.feather"
+        blob_1   = f"{blob_path}/specs/{a_ref}_{now_str}.feather"
 
         pd_ref = read_excel_table(ref_path, sheet, a_ref)
         as_fthr = prepare_excelref(pd_ref)

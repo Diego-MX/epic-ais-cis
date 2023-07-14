@@ -25,17 +25,18 @@ SETUP_KEYS = {
 AZURE_RESOURCES = {
     'qas': {
         'keyvault' : 'kv-cx-data-qas',
-        'storage'  : 'stglakehyliaqas', 
+        'storage'  : 'stlakehyliaqas', 
         'blob_path': "ops/fraud-prevention"}, 
     'prd': {
         'keyvault' : 'kv-cx-data-prd',
-        'storage'  : 'stglakehyliaprd', 
+        'storage'  : 'stlakehyliaprd', 
         'blob_path': "ops/fraud-prevention"}
 }
 
-DBKS_MAPPING = { # Left is how it's defined in Excel Refs. 
+DBKS_MAPPING = { # Key from Excel Refs, Value on DBKS metastore.  
     'gld_client_file'         : 'din_clients.gld_client_file', 
     'gld_cx_collections_loans': 'nayru_accounts.gld_cx_collections_loans'}
+
 
 
 ## Project-wide technical variables. 
