@@ -54,7 +54,7 @@ falcon_handler = TypeHandler({
     'int' : {}, 'long': {}, 
     'dbl' : {}, 'str' : {}, 
     'date': {'NA_str': ' '*8}, 
-    'ts'  : {'NA_str': ' '*8}})
+    'ts'  : {'NA_str': ' '*6}})
 
 falcon_rename = {
     'FieldName' : 'name', 
