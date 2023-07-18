@@ -24,18 +24,15 @@
 from pathlib import Path
 ref_path = Path("../refs/upload-specs")
 
-import re
-from pyspark.sql import types as T, functions as F, Row, Column
-from toolz.dicttoolz import valmap
+from pyspark.sql import functions as F
 
-from epic_py.delta import column_name
 from config import falcon_handler
 
 
 # COMMAND ----------
 
 from copy import deepcopy
-from datetime import datetime as dt, date
+from datetime import datetime as dt
 import pandas as pd
 from pytz import timezone
 
