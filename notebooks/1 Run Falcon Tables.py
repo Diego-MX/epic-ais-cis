@@ -15,11 +15,30 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install -q git+https://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@github.com/Bineo2/data-python-tools.git@dev-diego
+from copy import deepcopy
+from datetime import datetime as dt, date
+import pandas as pd
+from pyspark.sql import SparkSession
+from pyspark.dbutils import DBUtils
+from pytz import timezone
+import subprocess
+import yaml
+
+spark = SparkSession.builder.getOrCreate()
+dbutils = DBUtils(spark)
+
+with open("../user_databricks.yml", 'r') as _f: 
+    u_dbks = yaml.safe_load(_f)
+
+epicpy_load = {
+    'url'   : 'github.com/Bineo2/data-python-tools.git', 
+    'branch': 'dev-diego', 
+    'token' : dbutils.secrets.get(u_dbks['dbks_scope'], u_dbks['dbks_token']) }  
+
+url_call = "git+https://{token}@{url}@{branch}".format(**epicpy_load)
+subprocess.check_call(['pip', 'install', url_call])
 
 # COMMAND ----------
-
-### Celda para algunos ajustes en desarrollo. 
 
 from pathlib import Path
 ref_path = Path("../refs/upload-specs")
@@ -31,18 +50,6 @@ from toolz.dicttoolz import valmap
 from epic_py.delta import column_name
 from config import falcon_handler
 
-
-# COMMAND ----------
-
-from copy import deepcopy
-from datetime import datetime as dt, date
-import pandas as pd
-from pytz import timezone
-
-from pyspark.sql import SparkSession
-from pyspark.dbutils import DBUtils
-spark = SparkSession.builder.getOrCreate()
-dbutils = DBUtils(spark)
 
 # COMMAND ----------
 
@@ -79,6 +86,10 @@ def get_time(tz="America/Mexico_City", time_fmt="%Y-%m-%d"):
 
 # COMMAND ----------
 
+
+
+# COMMAND ----------
+
 cust_time = get_time()
 customers_specs = (pd.read_feather(ref_path/'customers_cols.feather')
         .rename(columns=falcon_rename))
@@ -98,7 +109,6 @@ customers_1 = (EpicDF(spark, dbks_tables['gld_client_file'])
 
 customers_2 = (customers_1.select_plus(customers_loader))
 customers_2.display()
-
 
 
 cust_header = dict(option=True, vendor='fiserv', 
@@ -178,7 +188,6 @@ accounts_1 = (EpicDF(spark, dbks_tables['gld_cx_collections_loans'])
     .with_column_plus(accounts_extract['_val'])
     .with_column_plus(accounts_extract['None']))
 
-accounts_1.display()
 
 # COMMAND ----------
 
@@ -221,26 +230,29 @@ accounts_3.display()
 
 # COMMAND ----------
 
-pymt_time = get_time()
-payments_specs = (pd.read_feather(ref_path/'payments_cols.feather')
-        .rename(columns=falcon_rename))
+haz_pagos = False
 
-payments_extract = falcon_builder.get_extract(payments_specs, 'delta')
-payments_loader = falcon_builder.get_loader(payments_specs, 'fixed-width')
-payments_onecol = (F.concat(*payments_specs['name'].values)
-    .alias('one-column'))
+if haz_pagos: 
+    pymt_time = get_time()
+    payments_specs = (pd.read_feather(ref_path/'payments_cols.feather')
+            .rename(columns=falcon_rename))
 
-payments_0 = spark.table(dbks_tables['gld_cx_collections_loans'])
+    payments_extract = falcon_builder.get_extract(payments_specs, 'delta')
+    payments_loader = falcon_builder.get_loader(payments_specs, 'fixed-width')
+    payments_onecol = (F.concat(*payments_specs['name'].values)
+        .alias('one-column'))
 
-payments_1 = (EpicDF(payments_0)
-    .select([vv.alias(kk) 
-        for kk, vv in payments_extract['gld_cx_collections_loans'].items()])
-    .with_column_plus(payments_extract['_val'])
-    .with_column_plus(payments_extract['None'])
-    )
+    payments_0 = spark.table(dbks_tables['gld_cx_collections_loans'])
 
-payments_2 = payments_1.select(payments_loader)
+    payments_1 = (EpicDF(payments_0)
+        .select([vv.alias(kk) 
+            for kk, vv in payments_extract['gld_cx_collections_loans'].items()])
+        .with_column_plus(payments_extract['_val'])
+        .with_column_plus(payments_extract['None'])
+        )
 
-payments_3 = payments_2.select(payments_onecol)
+    payments_2 = payments_1.select(payments_loader)
 
-payments_3.display()
+    payments_3 = payments_2.select(payments_onecol)
+
+    payments_3.display()
