@@ -48,7 +48,6 @@ import epic_py; reload(epic_py)
 import config ; reload(config)
 
 from epic_py.delta import EpicDF, EpicDataBuilder
-from epic_py.platform import EpicIdentity
 from config import (falcon_handler, falcon_rename, 
     dbks_tables, blob_path)
 
@@ -89,7 +88,7 @@ customers_onecol  = (F.concat(*customers_specs['name'].values)
     .alias(name_onecol))
 
 customers_1 = (EpicDF(spark, dbks_tables['gld_client_file'])
-    .select_plus(customers_extract['gld_client_file'])
+    .with_column_plus(customers_extract['gld_client_file'])
     .with_column_plus(customers_extract['_val'])
     .with_column_plus(customers_extract['None']))
 
