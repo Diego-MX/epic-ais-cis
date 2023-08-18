@@ -45,7 +45,7 @@ ENV = os.getenv('ENV_TYPE')
 SERVER = os.getenv('SERVER_TYPE')
 
 app_agent = EpicIdentity.create(server=SERVER, config=SETUP_KEYS[ENV])
-app_resourcer = app_agent.get_resourcer(AZURE_RESOURCES[ENV])
+app_resourcer = app_agent.get_resourcer(AZURE_RESOURCES[ENV], check_all=False)
 
 dbks_tables = DBKS_MAPPING
 

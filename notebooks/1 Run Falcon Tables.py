@@ -43,42 +43,28 @@ subprocess.check_call(['pip', 'install', url_call])
 from pathlib import Path
 ref_path = Path("../refs/upload-specs")
 
-
 # COMMAND ----------
 
 from importlib import reload
+import config; reload(config)
 import epic_py; reload(epic_py)
-import config ; reload(config)
 
 from epic_py.delta import EpicDF, EpicDataBuilder
+from src.head_foot import headfooters
 from config import (falcon_handler, falcon_rename, 
     dbks_tables, blob_path)
 
-
 falcon_builder = EpicDataBuilder(typehandler=falcon_handler)
-
-def check_builder(build_dict): 
-    check_keys = list(x for x in build_dict.keys() if x not in ['_val', 'None'])
-    if len(check_keys) == 0: 
-        print("Builder is empty.")
-    elif len(check_keys) == 1: 
-        print(f"Builder can be computed.\nUse {check_keys}.")
-    else: 
-        print(f"Builder needs JOIN(s).\n{check_keys}.")
-    return
 
 def get_time(tz="America/Mexico_City", time_fmt="%Y-%m-%d"): 
     return dt.now(tz=timezone(tz)).strftime(format=time_fmt)
+
 
 # COMMAND ----------
 
 # MAGIC %md 
 # MAGIC ## Clientes
 # MAGIC
-
-# COMMAND ----------
-
-
 
 # COMMAND ----------
 
@@ -102,26 +88,10 @@ customers_1 = (EpicDF(spark, dbks_tables['gld_client_file'])
 customers_2 = (customers_1.select_plus(customers_loader))
 customers_2.display()
 
-
-cust_header = dict(option=True, vendor='fiserv', 
-    data={
-        'record_type'       : 'B', 
-        'filetype'          : 'CIS20', 
-        'system_id'         : 'PMAX', 
-        'data_feed_sort_key': 0, 
-        'layout_ver'        : 1.0, 
-        'filler'            : 1866, 
-        'append'            : -1})
-
-cust_trailer = deepcopy(cust_header)
-cust_trailer['data'].update({
-        'record_type'       : 'E', 
-        'data_feed_sort_key': 10**9-1, 
-        'append'            : 1})
-
 customers_3 = (customers_2
     .select(customers_onecol)
-    .prep_one_col(header_info=cust_header, trailer_info=cust_trailer))
+    .prep_one_col(header_info=headfooters[('customer', 'header')], 
+                 trailer_info=headfooters[('customer', 'footer')]))
 
 customers_3.save_as_file(
     f"{blob_path}/reports/customers/{cust_time}.csv", 
@@ -131,30 +101,8 @@ customers_3.save_as_file(
 
 # COMMAND ----------
 
+print(f"{blob_path}/reports/customers/{cust_time}.csv")
 customers_3.display()
-
-# COMMAND ----------
-
-def check_1(rr): 
-    check_col = (F.when(F.length(rr['name']) != F.lit(rr['len']), 
-        F.concat(F.lit(f"{rr['len']}:{{"), F.col(rr['name']), F.lit("}:"), F.length(rr['name'])))
-        .otherwise("ok"))
-    return check_col
-
-check_select = {rr['name']: check_1(rr) for _, rr in customers_specs.iterrows()}
-
-df_check = (customers_2
-    .select_plus(check_select))
-
-count_cols = (df_check
-    .withColumn('group', F.lit(1))
-    .groupBy('group')
-    .agg_plus({rr['name']: F.sum(F.when(F.col(rr['name']) == F.lit('ok'), 0).otherwise(1)) 
-        for _, rr in customers_specs.iterrows()}))
-
-check_cols = [a_col for a_col in df_check.columns if count_cols.first()[a_col] > 0]
-
-df_check.select(*check_cols).display()
 
 # COMMAND ----------
 
@@ -187,24 +135,10 @@ accounts_2 = accounts_1.select_plus(accounts_loader)
 
 accounts_2.display()
 
-acct_header = dict(option=True, vendor='fiserv', 
-    data={
-        'record_type'       : 'B', 
-        'system_id'         : 'PMAX',
-        'filetype'          : 'AIS20', 
-        'data_feed_sort_key': 0, 
-        'layout_ver'        : 1.0, 
-        'filler'            : 1136, 
-        'append'            : -1})
-acct_trailer = deepcopy(acct_header)
-acct_trailer['data'].update({
-        'record_type'       : 'E', 
-        'data_feed_sort_key': 10**9-1, 
-        'append'            : 1})
-
 accounts_3 = (accounts_2
     .select(accounts_onecol)
-    .prep_one_col(header_info=acct_header, trailer_info=acct_trailer))
+    .prep_one_col(header_info=headfooters[('account', 'header')], 
+                 trailer_info=headfooters[('account', 'footer')]))
 
 accounts_3.save_as_file(
     f"{blob_path}/reports/accounts/{acct_time}.csv", 
@@ -213,6 +147,7 @@ accounts_3.save_as_file(
 
 # COMMAND ----------
 
+print( f"{blob_path}/reports/accounts/{acct_time}.csv")
 accounts_3.display()
 
 # COMMAND ----------
