@@ -49,10 +49,11 @@ from importlib import reload
 import config; reload(config)
 import epic_py; reload(epic_py)
 
+from pathlib import Path
 from epic_py.delta import EpicDF, EpicDataBuilder
 from src.head_foot import headfooters
 from config import (falcon_handler, falcon_rename, 
-    dbks_tables, blob_path)
+    dbks_tables, blob_path, app_resourcer)
 
 falcon_builder = EpicDataBuilder(typehandler=falcon_handler)
 
@@ -80,7 +81,7 @@ customers_loader  = falcon_builder.get_loader(customers_specs, 'fixed-width')
 customers_onecol  = (F.concat(*customers_specs['name'].values)
     .alias(name_onecol))
 
-customers_1 = (EpicDF(spark, dbks_tables['gld_client_file'])
+customers_1= (EpicDF(spark, dbks_tables['gld_client_file'])
     .with_column_plus(customers_extract['gld_client_file'])
     .with_column_plus(customers_extract['_val'])
     .with_column_plus(customers_extract['None']))
