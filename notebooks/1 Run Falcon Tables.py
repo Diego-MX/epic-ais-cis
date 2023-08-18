@@ -40,22 +40,19 @@ subprocess.check_call(['pip', 'install', url_call])
 
 # COMMAND ----------
 
-from pathlib import Path
-ref_path = Path("../refs/upload-specs")
-
-
-# COMMAND ----------
-
 from importlib import reload
 import epic_py; reload(epic_py)
 import config ; reload(config)
 
+from pathlib import Path
 from epic_py.delta import EpicDF, EpicDataBuilder
 from config import (falcon_handler, falcon_rename, 
-    dbks_tables, blob_path)
+    dbks_tables, blob_path, app_resourcer)
 
 
 falcon_builder = EpicDataBuilder(typehandler=falcon_handler)
+
+ref_path = Path("../refs/upload-specs")
 
 def check_builder(build_dict): 
     check_keys = list(x for x in build_dict.keys() if x not in ['_val', 'None'])
@@ -70,15 +67,12 @@ def check_builder(build_dict):
 def get_time(tz="America/Mexico_City", time_fmt="%Y-%m-%d"): 
     return dt.now(tz=timezone(tz)).strftime(format=time_fmt)
 
+
 # COMMAND ----------
 
 # MAGIC %md 
 # MAGIC ## Clientes
 # MAGIC
-
-# COMMAND ----------
-
-
 
 # COMMAND ----------
 
@@ -94,14 +88,13 @@ customers_loader  = falcon_builder.get_loader(customers_specs, 'fixed-width')
 customers_onecol  = (F.concat(*customers_specs['name'].values)
     .alias(name_onecol))
 
-customers_1 = (EpicDF(spark, dbks_tables['gld_client_file'])
+customers_1= (EpicDF(spark, dbks_tables['gld_client_file'])
     .with_column_plus(customers_extract['gld_client_file'])
     .with_column_plus(customers_extract['_val'])
     .with_column_plus(customers_extract['None']))
 
 customers_2 = (customers_1.select_plus(customers_loader))
 customers_2.display()
-
 
 cust_header = dict(option=True, vendor='fiserv', 
     data={
@@ -131,30 +124,8 @@ customers_3.save_as_file(
 
 # COMMAND ----------
 
+print(f"{blob_path}/reports/customers/{cust_time}.csv")
 customers_3.display()
-
-# COMMAND ----------
-
-def check_1(rr): 
-    check_col = (F.when(F.length(rr['name']) != F.lit(rr['len']), 
-        F.concat(F.lit(f"{rr['len']}:{{"), F.col(rr['name']), F.lit("}:"), F.length(rr['name'])))
-        .otherwise("ok"))
-    return check_col
-
-check_select = {rr['name']: check_1(rr) for _, rr in customers_specs.iterrows()}
-
-df_check = (customers_2
-    .select_plus(check_select))
-
-count_cols = (df_check
-    .withColumn('group', F.lit(1))
-    .groupBy('group')
-    .agg_plus({rr['name']: F.sum(F.when(F.col(rr['name']) == F.lit('ok'), 0).otherwise(1)) 
-        for _, rr in customers_specs.iterrows()}))
-
-check_cols = [a_col for a_col in df_check.columns if count_cols.first()[a_col] > 0]
-
-df_check.select(*check_cols).display()
 
 # COMMAND ----------
 
@@ -213,6 +184,7 @@ accounts_3.save_as_file(
 
 # COMMAND ----------
 
+print(f"{blob_path}/reports/accounts/{acct_time}.csv")
 accounts_3.display()
 
 # COMMAND ----------

@@ -19,7 +19,7 @@ SETUP_KEYS = {
             'client_secret'  : 'sp-collections-secret', #          
             'subscription_id': 'sp-collections-subscription', # 
             'tenant_id'      : 'aad-tenant-id'}, 
-        'databricks-scope': 'eh-core-banking'},  # kv-zoras
+        'databricks-scope': 'cx-collections'},  # kv-zoras
 }
 
 AZURE_RESOURCES = {
@@ -45,11 +45,13 @@ ENV = os.getenv('ENV_TYPE')
 SERVER = os.getenv('SERVER_TYPE')
 
 app_agent = EpicIdentity.create(server=SERVER, config=SETUP_KEYS[ENV])
+
 app_resourcer = app_agent.get_resourcer(AZURE_RESOURCES[ENV])
 
 dbks_tables = DBKS_MAPPING
 
-blob_path = AZURE_RESOURCES[ENV]['blob_path']
+blob_path = (app_resourcer.get_resource_url('abfss', 'storage', 
+        container='gold', blob_path=True))
 
 falcon_handler = TypeHandler({
     'int' : {}, 'long': {}, 
