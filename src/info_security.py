@@ -5,7 +5,7 @@ from pytz import timezone
 from epic_py.tools import read_excel_table
 
 
-ref_path = "refs/Info Security.xlsx.lnk"
+ref_path = "refs/Security Info.xlsx.lnk"
 cols_ref = (ref_path, 'Approach', 'fraud_cols')
 
 meta_cols = read_excel_table(*cols_ref).set_index('columna')
@@ -41,5 +41,6 @@ if __name__ == '__main__':
         pd_ref = read_excel_table(ref_path, sheet, a_ref)
         as_fthr = prepare_excelref(pd_ref)
         as_fthr.to_feather(ref_file)
-        app_resourcer.storage_upload_blob(ref_file, blob_0, 'gold', overwrite=True, verbose=1)
-        app_resourcer.storage_upload_blob(ref_file, blob_1, 'gold', overwrite=True, verbose=1)
+         
+        #app_resourcer.upload_storage_blob(ref_file, blob_0, 'gold', overwrite=True, verbose=1)
+        #app_resourcer.upload_storage_blob(ref_file, blob_1, 'gold', overwrite=True, verbose=1)
