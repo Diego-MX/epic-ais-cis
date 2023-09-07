@@ -1,4 +1,8 @@
-import os   # pylint: disable=missing-module-docstring
+# pylint: disable=missing-module-docstring
+import os
+import pydantic     # pylint: disable=unused-import
+# PYDANTIC no se usa aquí directamente, pero sí a través de EPIC_PY.
+# Importarlo antes puede evadir un ImportError a la hora de cargarlo desde EPIC_PY.
 
 from epic_py.delta import TypeHandler
 from epic_py.platform import EpicIdentity
@@ -12,21 +16,32 @@ SETUP_KEYS = {
             'client_secret'  : 'sp-core-events-secret',         #'QAS_SP_SECRET',
             'subscription_id': 'sp-core-events-subscription',   #'QAS_SP_SUBSTN',
             'tenant_id'      : 'aad-tenant-id'},                #'AAD_TENANT'},
-        'databricks-scope': 'eh-core-banking'},
+        'databricks-scope': 'eh-core-banking'}, 
+    'stg': {
+        'service-principal': { #                                # oauth-databricks-qas
+            'client_id'      : 'sp-core-events-client',         #'QAS_SP_CLIENT',
+            'client_secret'  : 'sp-core-events-secret',         #'QAS_SP_SECRET', 
+            'subscription_id': 'sp-core-events-suscription',    #'QAS_SP_SUBSTN', 
+            'tenant_id'      : 'aad-tenant-id'},                #'AAD_TENANT'},
+        'databricks-scope': 'eh-core-banking'}, 
     'prd': {
         'service-principal': {
-            'client_id'      : 'sp-collections-client', #
-            'client_secret'  : 'sp-collections-secret', #
-            'subscription_id': 'sp-collections-subscription', #
-            'tenant_id'      : 'aad-tenant-id'},
-        'databricks-scope': 'cx-collections'},  # kv-zoras
+            'client_id'      : 'sp-collections-client', # 
+            'client_secret'  : 'sp-collections-secret', #          
+            'subscription_id': 'sp-collections-subscription', # 
+            'tenant_id'      : 'aad-tenant-id'}, 
+        'databricks-scope': 'eh-core-banking'},  # kv-zoras
 }
 
 AZURE_RESOURCES = {
     'qas': {
         'keyvault' : 'kv-cx-data-qas',
-        'storage'  : 'stlakehyliaqas',
-        'blob_path': "ops/fraud-prevention"},
+        'storage'  : 'stlakehyliaqas', 
+        'blob_path': "ops/fraud-prevention"}, 
+    'stg': {
+        'keyvault' : 'kv-cx-data-stg',
+        'storage'  : 'stlakehyliastg', 
+        'blob_path': "ops/fraud-prevention"}, 
     'prd': {
         'keyvault' : 'kv-cx-data-prd',
         'storage'  : 'stlakehyliaprd',

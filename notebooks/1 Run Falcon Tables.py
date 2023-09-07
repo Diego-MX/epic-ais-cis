@@ -52,13 +52,18 @@ import epic_py; reload(epic_py)
 from pathlib import Path
 from epic_py.delta import EpicDF, EpicDataBuilder
 from src.head_foot import headfooters
-from config import (falcon_handler, falcon_rename, 
-    dbks_tables, blob_path, app_resourcer)
+from config import (app_agent, app_resourcer, 
+    falcon_handler, falcon_rename, 
+    dbks_tables, blob_path)
 
 falcon_builder = EpicDataBuilder(typehandler=falcon_handler)
 
 def get_time(tz="America/Mexico_City", time_fmt="%Y-%m-%d"): 
     return dt.now(tz=timezone(tz)).strftime(format=time_fmt)
+
+datalake = app_resourcer['storage']
+dlk_permissions = app_agent.prep_dbks_permissions(datalake, 'gen2')
+app_resourcer.set_dbks_permissions(dlk_permissions)
 
 
 # COMMAND ----------
@@ -104,6 +109,15 @@ customers_3.save_as_file(
 
 print(f"{blob_path}/reports/customers/{cust_time}.csv")
 customers_3.display()
+
+# COMMAND ----------
+
+from epic_py.delta.table_info import FlatFileInfo
+
+info_dict = headfooters[('customer', 'header')].copy()
+info_dict['data']['filler'] = 10
+flatter = FlatFileInfo.create(**info_dict)
+flatter.info_to_row()
 
 # COMMAND ----------
 
