@@ -30,7 +30,7 @@ SETUP_KEYS = {
             'client_secret'  : 'sp-collections-secret', #          
             'subscription_id': 'sp-collections-subscription', # 
             'tenant_id'      : 'aad-tenant-id'}, 
-        'databricks-scope': 'eh-core-banking'},  # kv-zoras
+        'databricks-scope': 'cx-collections'},  #   eh-core-banking
 }
 
 AZURE_RESOURCES = {

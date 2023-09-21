@@ -14,31 +14,26 @@
 # MAGIC * Pagos
 
 # COMMAND ----------
+
+# MAGIC %run ./0_install_nb_reqs
+
+# COMMAND ----------
+
+haz_pagos = False       # pylint: disable=invalid-name
+
+# COMMAND ----------
+
+# pylint: disable=wrong-import-position
+# pylint: disable=wrong-import-order
 from datetime import datetime as dt
-import subprocess
 from pytz import timezone
 
 import pandas as pd
 from pyspark.sql import SparkSession, functions as F
 from pyspark.dbutils import DBUtils     # pylint: disable=no-name-in-module,import-error
-import yaml     # pylint: disable=import-error
-
-# pylint: disable=wrong-import-position
-# pylint: disable=wrong-import-order
 
 spark = SparkSession.builder.getOrCreate()
 dbutils = DBUtils(spark)
-
-with open("../user_databricks.yml", 'r') as _f:     # pylint: disable=unspecified-encoding
-    u_dbks = yaml.safe_load(_f)
-
-epicpy_load = {
-    'url'   : 'github.com/Bineo2/data-python-tools.git',
-    'branch': 'dev-diego',
-    'token' : dbutils.secrets.get(u_dbks['dbks_scope'], u_dbks['dbks_token']) }
-
-url_call = "git+https://{token}@{url}@{branch}".format(**epicpy_load)
-subprocess.check_call(['pip', 'install', url_call])
 
 # COMMAND ----------
 
@@ -46,10 +41,6 @@ from pathlib import Path
 ref_path = Path("../refs/upload-specs")
 
 # COMMAND ----------
-
-from importlib import reload
-import config; reload(config)       # pylint: disable=multiple-statements
-import epic_py; reload(epic_py)     # pylint: disable=multiple-statements
 
 from epic_py.delta import EpicDF, EpicDataBuilder
 from src.head_foot import headfooters
@@ -67,6 +58,7 @@ dlk_permissions = app_agent.prep_dbks_permissions(datalake, 'gen2')
 app_resourcer.set_dbks_permissions(dlk_permissions)
 
 λ_name = lambda row: "{name}-{len}".format(**row)   # pylint: disable=consider-using-f-string
+
 # COMMAND ----------
 
 # MAGIC %md
@@ -79,7 +71,8 @@ cust_time = get_time()
 customers_specs = (pd.read_feather(ref_path/'customers_cols.feather')
         .rename(columns=falcon_rename))
 
-name_onecol = '~'.join(λ_name(rr) for _, rr in customers_specs.iterrows())  # pylint: disable=invalid-name
+name_onecol = '~'.join(λ_name(rr) 
+    for _, rr in customers_specs.iterrows())  # pylint: disable=invalid-name
 
 customers_extract = falcon_builder.get_extract(customers_specs, 'delta')
 customers_loader  = falcon_builder.get_loader(customers_specs, 'fixed-width')
@@ -104,12 +97,10 @@ customers_3.save_as_file(
     f"{blob_path}/reports/customers/tmp_delta",
     header=False)
 
-
 # COMMAND ----------
 
 print(f"{blob_path}/reports/customers/{cust_time}.csv")
 customers_3.display()
-
 
 # COMMAND ----------
 
@@ -133,7 +124,6 @@ accounts_1 = (EpicDF(spark, dbks_tables['gld_cx_collections_loans'])
     .select_plus(accounts_extract['gld_cx_collections_loans'])
     .with_column_plus(accounts_extract['_val'])
     .with_column_plus(accounts_extract['None']))
-
 
 # COMMAND ----------
 
@@ -162,8 +152,6 @@ accounts_3.display()
 # MAGIC ## Pagos
 
 # COMMAND ----------
-
-haz_pagos = False       # pylint: disable=invalid-name
 
 if haz_pagos:
     pymt_time = get_time()
