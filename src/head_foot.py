@@ -1,3 +1,6 @@
+"""DX, 5 de septiembre de 2023
+Módulo para generar FlatFileInfo a modo de pruebas. 
+"""
 
 meta_info = dict(option=True, vendor='fiserv')
 
@@ -38,5 +41,3 @@ if __name__ == '__main__':
     choose_one = ('customer', 'header')
     flatter = FlatFileInfo.create(**headfooters[choose_one])
     print(flatter.info_to_row())
-
-
