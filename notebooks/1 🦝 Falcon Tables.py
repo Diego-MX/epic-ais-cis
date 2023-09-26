@@ -26,7 +26,7 @@ haz_pagos = False       # pylint: disable=invalid-name
 # pylint: disable=wrong-import-position
 # pylint: disable=wrong-import-order
 from datetime import datetime as dt
-from pytz import timezone
+from pytz import timezone as tz
 
 import pandas as pd
 from pyspark.sql import SparkSession, functions as F
@@ -50,14 +50,14 @@ from config import (app_agent, app_resourcer,
 
 falcon_builder = EpicDataBuilder(typehandler=falcon_handler)
 
-def get_time(tz="America/Mexico_City", time_fmt="%Y-%m-%d"):
-    return dt.now(tz=timezone(tz)).strftime(format=time_fmt)
-
 datalake = app_resourcer['storage']
 dlk_permissions = app_agent.prep_dbks_permissions(datalake, 'gen2')
 app_resourcer.set_dbks_permissions(dlk_permissions)
 
 λ_name = lambda row: "{name}-{len}".format(**row)   # pylint: disable=consider-using-f-string
+
+def get_time(a_tz="America/Mexico_City", time_fmt="%Y-%m-%d"):
+    return dt.now(tz=tz(a_tz)).strftime(format=time_fmt)
 
 # COMMAND ----------
 
@@ -69,7 +69,7 @@ app_resourcer.set_dbks_permissions(dlk_permissions)
 
 cust_time = get_time()
 customers_specs = (pd.read_feather(ref_path/'customers_cols.feather')
-        .rename(columns=falcon_rename))
+    .rename(columns=falcon_rename))
 
 name_onecol = '~'.join(λ_name(rr) 
     for _, rr in customers_specs.iterrows())  # pylint: disable=invalid-name
@@ -140,11 +140,6 @@ accounts_3.save_as_file(
     f"{blob_path}/reports/accounts/{acct_time}.csv",
     f"{blob_path}/reports/accounts/tmp_delta",
     header=False)
-
-# COMMAND ----------
-
-print( f"{blob_path}/reports/accounts/{acct_time}.csv")
-accounts_3.display()
 
 # COMMAND ----------
 
