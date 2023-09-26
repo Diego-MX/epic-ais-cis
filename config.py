@@ -50,9 +50,8 @@ AZURE_RESOURCES = {
 
 DBKS_MAPPING = { # Key from Excel Refs, Value on DBKS metastore.
     'gld_client_file'         : 'din_clients.gld_client_file',
-    'gld_cx_collections_loans': 'nayru_accounts.gld_cx_collections_loans'}
-
-
+    'gld_cx_collections_loans': 'nayru_accounts.gld_cx_collections_loans'
+}
 
 ## Project-wide technical variables.
 
