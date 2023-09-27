@@ -43,6 +43,7 @@ ref_path = Path("../refs/upload-specs")
 # COMMAND ----------
 
 from epic_py.delta import EpicDF, EpicDataBuilder
+from epic_py.tools import dirfiles_df
 from src.head_foot import headfooters
 from config import (app_agent, app_resourcer,
     falcon_handler, falcon_rename,
@@ -99,8 +100,7 @@ customers_3.save_as_file(
 
 # COMMAND ----------
 
-print(f"{blob_path}/reports/customers/{cust_time}.csv")
-customers_3.display()
+dirfiles_df(f"{blob_path}/reports/customers/", spark).sort_values('modificationTime', ascending=False)
 
 # COMMAND ----------
 
@@ -140,6 +140,10 @@ accounts_3.save_as_file(
     f"{blob_path}/reports/accounts/{acct_time}.csv",
     f"{blob_path}/reports/accounts/tmp_delta",
     header=False)
+
+# COMMAND ----------
+
+dirfiles_df(f"{blob_path}/reports/accounts/", spark).sort_values('modificationTime', ascending=False)
 
 # COMMAND ----------
 
