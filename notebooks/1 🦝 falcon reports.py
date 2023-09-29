@@ -1,4 +1,4 @@
-# Databricks notebook source
+# Databricks notebook source        # pylint: disable=invalid-name,missing-module-docstring
 # MAGIC %md
 # MAGIC # Tablas de Falcon
 # MAGIC
@@ -72,8 +72,8 @@ cust_time = get_time()
 customers_specs = (pd.read_feather(ref_path/'customers_cols.feather')
     .rename(columns=falcon_rename))
 
-name_onecol = '~'.join(λ_name(rr) 
-    for _, rr in customers_specs.iterrows())  # pylint: disable=invalid-name
+name_onecol = '~'.join(λ_name(rr)       # pylint: disable=invalid-name
+    for _, rr in customers_specs.iterrows())
 
 customers_extract = falcon_builder.get_extract(customers_specs, 'delta')
 customers_loader  = falcon_builder.get_loader(customers_specs, 'fixed-width')
@@ -100,7 +100,8 @@ customers_3.save_as_file(
 
 # COMMAND ----------
 
-dirfiles_df(f"{blob_path}/reports/customers/", spark).sort_values('modificationTime', ascending=False)
+(dirfiles_df(f"{blob_path}/reports/customers/", spark)
+    .sort_values('modificationTime', ascending=False))
 
 # COMMAND ----------
 
@@ -143,7 +144,8 @@ accounts_3.save_as_file(
 
 # COMMAND ----------
 
-dirfiles_df(f"{blob_path}/reports/accounts/", spark).sort_values('modificationTime', ascending=False)
+(dirfiles_df(f"{blob_path}/reports/accounts/", spark)
+    .sort_values('modificationTime', ascending=False))
 
 # COMMAND ----------
 

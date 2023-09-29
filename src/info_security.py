@@ -32,11 +32,11 @@ if __name__ == '__main__':
 
     # table: sheet
     data_ref = {
-        'payments':  'Payment',
-        'accounts':  'Account',
-        'customers': 'Customer'}
+        'payments':  'PIS',
+        'accounts':  'AIS',
+        'customers': 'CIS'}
 
-    a_ref, sheet = 'payments', 'Payment'
+    a_ref, sheet = 'payments', 'PIS'
     for a_ref, sheet in data_ref.items():
         now_str = (dt.now(tz=timezone("America/Mexico_City"))
                 .strftime("%Y-%m-%d_%H:%M"))

@@ -26,5 +26,9 @@ demás áreas de infraestructura.  Particularmente:
   * _Storage_ `stlakehylia{env}` donde se leen y depositan datos de reportería.  
   * Ruta del _storage_ `/ops/fraud-prevention` para cualquier generación de archivos.  
   * Más aún, utilizamos la siguiente especificación en la generación de reportes: 
-        - `.../reports/{cual-reporte}/yyyy-mm-dd.csv` donde `cual-reporte` es uno de 
-            los correspondientes `{customers,accounts,payments}`. 
+    - `.../reports/{cual-reporte}/yyyy-mm-dd.csv` donde `cual-reporte` es uno de 
+      los correspondientes `{customers,accounts,payments}`.  
+  * Para los datos de insumos utilizamos:  
+    - tablas en _metastore_/_unity catalog_ de Databricks de acuerdo con `config.DBKS_MAPPING`. 
+    - especificaciones técnicas de las tablas; idealmente se guardan en el _storage_, 
+      aunque una solución temporal es leerlas de la carpeta del repositorio.  
