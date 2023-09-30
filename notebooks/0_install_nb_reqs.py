@@ -1,7 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC ## Descripción
-# MAGIC Instalar librerías generalizadas para los notebooks. 
+# MAGIC Instalando librerías para los _notebooks_... 
 
 # COMMAND ----------
 
@@ -9,7 +8,7 @@
 
 # COMMAND ----------
 
-epicpy_ref = 'gh-1.3'   # 'gh-1.2'
+epicpy_ref = 'gh-1.3'
 
 # COMMAND ----------
 

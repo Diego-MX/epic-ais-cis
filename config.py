@@ -39,7 +39,8 @@ AZURE_RESOURCES = {
         'keyvault' : 'kv-cx-data-stg',
         'storage'  : 'stlakehyliastg', 
         'storage_path': "ops/fraud-prevention",
-        'blob_path': "ops/fraud-prevention"}, 
+        'blob_path': "ops/fraud-prevention", 
+        'storage_paths': ["ops/fraud-prevention", "ops/"]}, 
     'prd': {
         'keyvault' : 'kv-cx-data-prd',
         'storage'  : 'stlakehyliaprd',

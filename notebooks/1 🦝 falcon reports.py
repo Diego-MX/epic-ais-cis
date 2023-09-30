@@ -1,4 +1,4 @@
-# Databricks notebook source        # pylint: disable=invalid-name,missing-module-docstring
+# Databricks notebook source
 # MAGIC %md
 # MAGIC # Tablas de Falcon
 # MAGIC
@@ -6,8 +6,8 @@
 # MAGIC Las secciones del _notebook_ son:  
 # MAGIC `-1` Desarrollo  
 # MAGIC `0`  Preparación  
-# MAGIC `1.1`  Clientes  
-# MAGIC `1.2`  Ejecutamos las tablas una por una, para tener visibilidad de errores:  
+# MAGIC `1.1` Clientes  
+# MAGIC `1.2` Ejecutamos las tablas una por una, para tener visibilidad de errores:  
 # MAGIC   
 # MAGIC * Clientes  
 # MAGIC * Cuentas  
@@ -25,11 +25,11 @@ haz_pagos = False       # pylint: disable=invalid-name
 
 # pylint: disable=wrong-import-position
 # pylint: disable=wrong-import-order
-from datetime import datetime as dt
+from datetime import datetime as dt, date
 from pytz import timezone as tz
 
 import pandas as pd
-from pyspark.sql import SparkSession, functions as F
+from pyspark.sql import functions as F, SparkSession, Window as W 
 from pyspark.dbutils import DBUtils     # pylint: disable=no-name-in-module,import-error
 
 spark = SparkSession.builder.getOrCreate()
@@ -79,7 +79,14 @@ customers_loader  = falcon_builder.get_loader(customers_specs, 'fixed-width')
 customers_onecol  = (F.concat(*customers_specs['name'].values)
     .alias(name_onecol))
 
+w_client = (W.partitionBy('sap_client_id')
+    .orderBy(F.col('terms_ts').desc()))
+
 customers_1= (EpicDF(spark, dbks_tables['gld_client_file'])
+    .withColumn('terms_ts', F.to_timestamp('terms_and_cond_geo_ts'))
+    .filter(F.col('terms_ts') >= date(2023, 5, 1))
+    .withColumn('rank_ts', F.row_number().over(w_client))
+    .filter((F.col('rank_ts') == 1)) 
     .with_column_plus(customers_extract['gld_client_file'])
     .with_column_plus(customers_extract['_val'])
     .with_column_plus(customers_extract['None']))
@@ -126,8 +133,6 @@ accounts_1 = (EpicDF(spark, dbks_tables['gld_cx_collections_loans'])
     .with_column_plus(accounts_extract['_val'])
     .with_column_plus(accounts_extract['None']))
 
-# COMMAND ----------
-
 accounts_2 = accounts_1.select_plus(accounts_loader)
 
 accounts_2.display()
@@ -141,11 +146,6 @@ accounts_3.save_as_file(
     f"{blob_path}/reports/accounts/{acct_time}.csv",
     f"{blob_path}/reports/accounts/tmp_delta",
     header=False)
-
-# COMMAND ----------
-
-(dirfiles_df(f"{blob_path}/reports/accounts/", spark)
-    .sort_values('modificationTime', ascending=False))
 
 # COMMAND ----------
 
