@@ -3,14 +3,14 @@
 # MAGIC # Tablas de Falcon
 # MAGIC
 # MAGIC En este _notebook_ se ejecutan las actualizaciones de las tablas de Falcon.
-# MAGIC Las secciones del _notebook_ son:
-# MAGIC `-1` Desarrollo
-# MAGIC `0`  Preparación
-# MAGIC `1.1`  Clientes
-# MAGIC `1.2`  Ejecutamos las tablas una por una, para tener visibilidad de errores:
-# MAGIC
-# MAGIC * Clientes
-# MAGIC * Cuentas
+# MAGIC Las secciones del _notebook_ son:  
+# MAGIC `-1` Desarrollo  
+# MAGIC `0`  Preparación  
+# MAGIC `1.1`  Clientes  
+# MAGIC `1.2`  Ejecutamos las tablas una por una, para tener visibilidad de errores:  
+# MAGIC   
+# MAGIC * Clientes  
+# MAGIC * Cuentas  
 # MAGIC * Pagos
 
 # COMMAND ----------
@@ -45,9 +45,8 @@ ref_path = Path("../refs/upload-specs")
 from epic_py.delta import EpicDF, EpicDataBuilder
 from epic_py.tools import dirfiles_df
 from src.head_foot import headfooters
-from config import (app_agent, app_resourcer,
-    falcon_handler, falcon_rename,
-    dbks_tables, blob_path)
+from config import (app_agent, app_resourcer, blob_path,
+    dbks_tables, falcon_handler, falcon_rename)
 
 falcon_builder = EpicDataBuilder(typehandler=falcon_handler)
 
@@ -100,7 +99,8 @@ customers_3.save_as_file(
 
 # COMMAND ----------
 
-dirfiles_df(f"{blob_path}/reports/customers/", spark).sort_values('modificationTime', ascending=False)
+print(f"customers/{cust_time}.csv")
+customers_3.display()
 
 # COMMAND ----------
 
@@ -113,7 +113,8 @@ acct_time = get_time()
 accounts_specs = (pd.read_feather(ref_path/'accounts_cols.feather')
         .rename(columns=falcon_rename))
 
-onecol_account = '~'.join(λ_name(rr) for _, rr in accounts_specs.iterrows())    # pylint: disable=invalid-name
+onecol_account = '~'.join(λ_name(rr)        # pylint: disable=invalid-name
+    for _, rr in accounts_specs.iterrows())
 
 accounts_extract = falcon_builder.get_extract(accounts_specs, 'delta')
 accounts_loader = falcon_builder.get_loader(accounts_specs, 'fixed-width')
@@ -143,7 +144,13 @@ accounts_3.save_as_file(
 
 # COMMAND ----------
 
-dirfiles_df(f"{blob_path}/reports/accounts/", spark).sort_values('modificationTime', ascending=False)
+(dirfiles_df(f"{blob_path}/reports/accounts/", spark)
+    .sort_values('modificationTime', ascending=False))
+
+# COMMAND ----------
+
+print(f"accounts/{acct_time}.csv")
+accounts_3.display()
 
 # COMMAND ----------
 

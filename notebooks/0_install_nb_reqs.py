@@ -9,7 +9,7 @@
 
 # COMMAND ----------
 
-epicpy_ref = 'gh-1.2'
+epicpy_ref = 'gh-1.3'   # 'gh-1.2'
 
 # COMMAND ----------
 
