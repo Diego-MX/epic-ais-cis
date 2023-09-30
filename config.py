@@ -1,12 +1,8 @@
 # pylint: disable=missing-module-docstring
 import os
-import pydantic     # pylint: disable=unused-import
-# PYDANTIC no se usa aquí directamente, pero sí a través de EPIC_PY.
-# Importarlo antes puede evadir un ImportError a la hora de cargarlo desde EPIC_PY.
 
 from epic_py.delta import TypeHandler
 from epic_py.platform import EpicIdentity
-
 
 ## Infrastructure resources are defined here.
 SETUP_KEYS = {
@@ -37,14 +33,17 @@ AZURE_RESOURCES = {
     'qas': {
         'keyvault' : 'kv-cx-data-qas',
         'storage'  : 'stlakehyliaqas', 
+        'storage_path': "ops/fraud-prevention", 
         'blob_path': "ops/fraud-prevention"}, 
     'stg': {
         'keyvault' : 'kv-cx-data-stg',
         'storage'  : 'stlakehyliastg', 
+        'storage_path': "ops/fraud-prevention",
         'blob_path': "ops/fraud-prevention"}, 
     'prd': {
         'keyvault' : 'kv-cx-data-prd',
         'storage'  : 'stlakehyliaprd',
+        'storage_path': "ops/fraud-prevention", 
         'blob_path': "ops/fraud-prevention"}
 }
 
@@ -67,10 +66,12 @@ blob_path = (app_resourcer.get_resource_url('abfss', 'storage',
         container='gold', blob_path=True))
 
 falcon_handler = TypeHandler({
-    'int' : {}, 'long': {},
-    'dbl' : {}, 'str' : {},
-    'date': {'NA_str': ' '*8},
-    'ts'  : {'NA_str': ' '*6}})
+    'int' : {'NA_str': ''}, 
+    'long': {'NA_str': ''},
+    'dbl' : {'NA_str': ''}, 
+    'str' : {'NA_str': ''},
+    'date': {'NA_str': ' '*8, 'c_format': '%8s'},
+    'ts'  : {'NA_str': ' '*6, 'c_format': '%8s'}})
 
 falcon_rename = {
     'FieldName' : 'name',
