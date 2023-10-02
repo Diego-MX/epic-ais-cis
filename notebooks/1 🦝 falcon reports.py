@@ -23,17 +23,21 @@ haz_pagos = False       # pylint: disable=invalid-name
 
 # COMMAND ----------
 
+match_clients = True
+
+# COMMAND ----------
+
 # pylint: disable=wrong-import-position
 # pylint: disable=wrong-import-order
 from datetime import datetime as dt, date
 from pytz import timezone as tz
-
+import re
 import pandas as pd
-from pyspark.sql import functions as F, SparkSession, Window as W 
+from pyspark.sql import functions as F, Row, SparkSession, Window as W
 from pyspark.dbutils import DBUtils     # pylint: disable=no-name-in-module,import-error
 
-spark = SparkSession.builder.getOrCreate()
-dbutils = DBUtils(spark)
+#spark = SparkSession.builder.getOrCreate()
+#dbutils = DBUtils(spark)
 
 # COMMAND ----------
 
@@ -61,6 +65,63 @@ def get_time(a_tz="America/Mexico_City", time_fmt="%Y-%m-%d"):
 
 # COMMAND ----------
 
+customers_ids = (EpicDF(spark, dbks_tables['gld_client_file'])
+    .select('sap_client_id').distinct())
+
+which_ids = (EpicDF(spark, 'prd.hyrule.view_account_balance_mapper')
+    .select('client_id', F.col('client_id').alias('sap_client_id')).distinct()
+    .join(customers_ids, on='sap_client_id', how='inner'))
+
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Cuentas
+
+# COMMAND ----------
+
+acct_time = get_time()
+accounts_specs = (pd.read_feather(ref_path/'accounts_cols.feather')
+        .rename(columns=falcon_rename))
+
+onecol_account = '~'.join(λ_name(rr)        # pylint: disable=invalid-name
+    for _, rr in accounts_specs.iterrows())
+
+accounts_extract = falcon_builder.get_extract(accounts_specs, 'delta')
+accounts_loader = falcon_builder.get_loader(accounts_specs, 'fixed-width')
+accounts_onecol = (F.concat(*accounts_specs['name'].values)
+    .alias(onecol_account))
+
+# accounts_1 = (EpicDF(spark, dbks_tables['gld_cx_collections_loans'])
+accounts_1 = (EpicDF(spark, 'prd.hyrule.view_account_balance_mapper')
+    .join(which_ids, on='client_id', how='semi')
+    .with_column_renamed_plus({
+        'client_id': 'BorrowerID', 'core_account_id': 'BankAccountID'})
+    .withColumn('type', F.lit('D'))
+    .select_plus(accounts_extract['gld_cx_collections_loans'])
+    .with_column_plus(accounts_extract['_val'])
+    .with_column_plus(accounts_extract['None']))
+
+accounts_2 = accounts_1.select_plus(accounts_loader)
+accounts_2.display()
+
+accounts_3 = (accounts_2
+    .select(accounts_onecol)
+    .prep_one_col(header_info=headfooters[('account', 'header')],
+                 trailer_info=headfooters[('account', 'footer')]))
+
+accounts_3.save_as_file(
+    f"{blob_path}/reports/accounts/{acct_time}.csv",
+    f"{blob_path}/reports/accounts/tmp_delta",
+    header=False)
+
+# COMMAND ----------
+
+print(f"accounts/{acct_time}.csv")
+accounts_3.display()
+
+# COMMAND ----------
+
 # MAGIC %md
 # MAGIC ## Clientes
 # MAGIC
@@ -82,24 +143,39 @@ customers_onecol  = (F.concat(*customers_specs['name'].values)
 w_client = (W.partitionBy('sap_client_id')
     .orderBy(F.col('terms_ts').desc()))
 
-customers_1= (EpicDF(spark, dbks_tables['gld_client_file'])
-    .withColumn('terms_ts', F.to_timestamp('terms_and_cond_geo_ts'))
-    .filter(F.col('terms_ts') >= date(2023, 5, 1))
-    .withColumn('rank_ts', F.row_number().over(w_client))
-    .filter((F.col('rank_ts') == 1)) 
+gender_df = spark.createDataFrame([
+    Row(gender='H', gender_new='M'), 
+    Row(gender='M', gender_new='F')])
+
+customers_0 = (EpicDF(spark, dbks_tables['gld_client_file'])
+    .join(which_ids, on='sap_client_id', how='semi'))
+
+customers_1= EpicDF(customers_0
+    .drop(*(a_col for a_col in customers_0.columns
+        if a_col.startswith('ben_')), 'bureau_req_ts')
+    .distinct())
+
+customers_2 = EpicDF(customers_1
     .with_column_plus(customers_extract['gld_client_file'])
     .with_column_plus(customers_extract['_val'])
-    .with_column_plus(customers_extract['None']))
-
-customers_2 = customers_1.select_plus(customers_loader)
-customers_2.display()
+    .with_column_plus(customers_extract['None'])
+    .join(gender_df, on='gender')
+    .drop('gender'))
 
 customers_3 = (customers_2
+    .withColumnRenamed('gender_new', 'gender'))
+
+customers_3.display()
+
+customers_4 = (customers_3
+    .select_plus(customers_loader))
+
+customers_5 = (customers_4
     .select(customers_onecol)
     .prep_one_col(header_info=headfooters[('customer', 'header')],
                  trailer_info=headfooters[('customer', 'footer')]))
 
-customers_3.save_as_file(
+customers_5.save_as_file(
     f"{blob_path}/reports/customers/{cust_time}.csv",
     f"{blob_path}/reports/customers/tmp_delta",
     header=False)
@@ -107,50 +183,7 @@ customers_3.save_as_file(
 # COMMAND ----------
 
 print(f"customers/{cust_time}.csv")
-customers_3.display()
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## Cuentas
-
-# COMMAND ----------
-
-acct_time = get_time()
-accounts_specs = (pd.read_feather(ref_path/'accounts_cols.feather')
-        .rename(columns=falcon_rename))
-
-onecol_account = '~'.join(λ_name(rr)        # pylint: disable=invalid-name
-    for _, rr in accounts_specs.iterrows())
-
-accounts_extract = falcon_builder.get_extract(accounts_specs, 'delta')
-accounts_loader = falcon_builder.get_loader(accounts_specs, 'fixed-width')
-accounts_onecol = (F.concat(*accounts_specs['name'].values)
-    .alias(onecol_account))
-
-accounts_1 = (EpicDF(spark, dbks_tables['gld_cx_collections_loans'])
-    .select_plus(accounts_extract['gld_cx_collections_loans'])
-    .with_column_plus(accounts_extract['_val'])
-    .with_column_plus(accounts_extract['None']))
-
-accounts_2 = accounts_1.select_plus(accounts_loader)
-
-accounts_2.display()
-
-accounts_3 = (accounts_2
-    .select(accounts_onecol)
-    .prep_one_col(header_info=headfooters[('account', 'header')],
-                 trailer_info=headfooters[('account', 'footer')]))
-
-accounts_3.save_as_file(
-    f"{blob_path}/reports/accounts/{acct_time}.csv",
-    f"{blob_path}/reports/accounts/tmp_delta",
-    header=False)
-
-# COMMAND ----------
-
-print(f"accounts/{acct_time}.csv")
-accounts_3.display()
+customers_5.display()
 
 # COMMAND ----------
 

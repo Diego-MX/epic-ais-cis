@@ -49,7 +49,7 @@ AZURE_RESOURCES = {
 }
 
 DBKS_MAPPING = { # Key from Excel Refs, Value on DBKS metastore.
-    'gld_client_file'         : 'din_clients.gld_client_file',
+    'gld_client_file'         : 'din_clients.gld_client_file',  # 
     'gld_cx_collections_loans': 'nayru_accounts.gld_cx_collections_loans'
 }
 
@@ -70,9 +70,9 @@ falcon_handler = TypeHandler({
     'int' : {'NA_str': ''}, 
     'long': {'NA_str': ''},
     'dbl' : {'NA_str': ''}, 
-    'str' : {'NA_str': ''},
+    'str' : {'NA_str': '', 'encoding': 'ascii'},
     'date': {'NA_str': ' '*8, 'c_format': '%8s'},
-    'ts'  : {'NA_str': ' '*6, 'c_format': '%8s'}})
+    'ts'  : {'NA_str': ' '*6, 'c_format': '%6s'}})
 
 falcon_rename = {
     'FieldName' : 'name',
