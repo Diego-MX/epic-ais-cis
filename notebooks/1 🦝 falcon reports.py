@@ -20,10 +20,7 @@
 # COMMAND ----------
 
 haz_pagos = False       # pylint: disable=invalid-name
-
-# COMMAND ----------
-
-match_clients = True
+match_clients = True    # pylint: disable=invalid-name
 
 # COMMAND ----------
 
@@ -71,7 +68,6 @@ customers_ids = (EpicDF(spark, dbks_tables['gld_client_file'])
 which_ids = (EpicDF(spark, 'prd.hyrule.view_account_balance_mapper')
     .select('client_id', F.col('client_id').alias('sap_client_id')).distinct()
     .join(customers_ids, on='sap_client_id', how='inner'))
-
 
 # COMMAND ----------
 
