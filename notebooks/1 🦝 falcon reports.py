@@ -19,27 +19,28 @@
 
 # COMMAND ----------
 
-haz_pagos = False       # pylint: disable=invalid-name
-match_clients = True    # pylint: disable=invalid-name
+# pylint: disable=invalid-name
+haz_pagos = False
+match_clientes = True
+nombre_columna = False
+repo_path = True
 
 # COMMAND ----------
 
 # pylint: disable=wrong-import-position
 # pylint: disable=wrong-import-order
 from datetime import datetime as dt, date
-from pytz import timezone as tz
+from pathlib import Path
 import re
+from warnings import warn
+
 import pandas as pd
 from pyspark.sql import functions as F, Row, SparkSession, Window as W
 from pyspark.dbutils import DBUtils     # pylint: disable=no-name-in-module,import-error
+from pytz import timezone as tz
 
-#spark = SparkSession.builder.getOrCreate()
-#dbutils = DBUtils(spark)
-
-# COMMAND ----------
-
-from pathlib import Path
-ref_path = Path("../refs/upload-specs")
+spark = SparkSession.builder.getOrCreate()
+dbutils = DBUtils(spark)
 
 # COMMAND ----------
 
@@ -62,12 +63,18 @@ def get_time(a_tz="America/Mexico_City", time_fmt="%Y-%m-%d"):
 
 # COMMAND ----------
 
-customers_ids = (EpicDF(spark, dbks_tables['gld_client_file'])
-    .select('sap_client_id').distinct())
+if match_clientes: 
+    customers_ids = (EpicDF(spark, dbks_tables['gld_client_file'])
+        .select('sap_client_id').distinct())
 
-which_ids = (EpicDF(spark, 'prd.hyrule.view_account_balance_mapper')
-    .select('client_id', F.col('client_id').alias('sap_client_id')).distinct()
-    .join(customers_ids, on='sap_client_id', how='inner'))
+    which_ids = (EpicDF(spark, 'prd.hyrule.view_account_balance_mapper')
+        .select('client_id', F.col('client_id').alias('sap_client_id')).distinct()
+        .join(customers_ids, on='sap_client_id', how='inner'))
+
+if repo_path: 
+    ref_path = Path("../refs/upload-specs")
+else: 
+    warn("Havent implemented REF_PATH for Blob Path (opposite to Repo Path).")
 
 # COMMAND ----------
 
@@ -80,17 +87,25 @@ acct_time = get_time()
 accounts_specs = (pd.read_feather(ref_path/'accounts_cols.feather')
         .rename(columns=falcon_rename))
 
-onecol_account = '~'.join(λ_name(rr)        # pylint: disable=invalid-name
+ais_longname = '~'.join(λ_name(rr)        # pylint: disable=invalid-name
     for _, rr in accounts_specs.iterrows())
+ais_name = ais_longname if nombre_columna else 'ais-columna-fixed-width'
 
 accounts_extract = falcon_builder.get_extract(accounts_specs, 'delta')
 accounts_loader = falcon_builder.get_loader(accounts_specs, 'fixed-width')
 accounts_onecol = (F.concat(*accounts_specs['name'].values)
-    .alias(onecol_account))
+    .alias(ais_name))
 
-# accounts_1 = (EpicDF(spark, dbks_tables['gld_cx_collections_loans'])
-accounts_1 = (EpicDF(spark, 'prd.hyrule.view_account_balance_mapper')
-    .join(which_ids, on='client_id', how='semi')
+accounts_tbl = (dbks_tables['gld_cx_collections_loans'] 
+    if not match_clientes else 'prd.hyrule.view_account_balance_mapper')
+
+if match_clientes: 
+    accounts_0 = (EpicDF(spark, accounts_tbl)
+        .join(which_ids, on='client_id', how='semi'))
+else: 
+    accounts_0 = EpicDF(spark, accounts_tbl)
+
+accounts_1 = (accounts_0
     .with_column_renamed_plus({
         'client_id': 'BorrowerID', 'core_account_id': 'BankAccountID'})
     .withColumn('type', F.lit('D'))
@@ -113,6 +128,10 @@ accounts_3.save_as_file(
 
 # COMMAND ----------
 
+accounts_loader = falcon_builder.get_loader(accounts_specs, 'fixed-width')
+
+# COMMAND ----------
+
 print(f"accounts/{acct_time}.csv")
 accounts_3.display()
 
@@ -128,27 +147,27 @@ cust_time = get_time()
 customers_specs = (pd.read_feather(ref_path/'customers_cols.feather')
     .rename(columns=falcon_rename))
 
-name_onecol = '~'.join(λ_name(rr)       # pylint: disable=invalid-name
-    for _, rr in customers_specs.iterrows())
+cis_longname = '~'.join(λ_name(rr) for _, rr in customers_specs.iterrows())
+cis_name = cis_longname if nombre_columna else 'cis-columna-fixed-width'
 
 customers_extract = falcon_builder.get_extract(customers_specs, 'delta')
 customers_loader  = falcon_builder.get_loader(customers_specs, 'fixed-width')
 customers_onecol  = (F.concat(*customers_specs['name'].values)
-    .alias(name_onecol))
-
-w_client = (W.partitionBy('sap_client_id')
-    .orderBy(F.col('terms_ts').desc()))
+    .alias(cis_name))
 
 gender_df = spark.createDataFrame([
     Row(gender='H', gender_new='M'), 
     Row(gender='M', gender_new='F')])
 
-customers_0 = (EpicDF(spark, dbks_tables['gld_client_file'])
-    .join(which_ids, on='sap_client_id', how='semi'))
+if match_clientes: 
+    customers_0 = (EpicDF(spark, dbks_tables['gld_client_file'])
+        .join(which_ids, on='sap_client_id', how='semi'))
+else: 
+    customers_0 = EpicDF(spark, dbks_tables['gld_client_file'])
 
 customers_1= EpicDF(customers_0
-    .drop(*(a_col for a_col in customers_0.columns
-        if a_col.startswith('ben_')), 'bureau_req_ts')
+    .drop('bureau_req_ts', *(a_col for a_col in customers_0.columns
+        if a_col.startswith('ben_')))
     .distinct())
 
 customers_2 = EpicDF(customers_1
@@ -156,22 +175,20 @@ customers_2 = EpicDF(customers_1
     .with_column_plus(customers_extract['_val'])
     .with_column_plus(customers_extract['None'])
     .join(gender_df, on='gender')
-    .drop('gender'))
-
-customers_3 = (customers_2
+    .drop('gender')
     .withColumnRenamed('gender_new', 'gender'))
 
-customers_3.display()
+customers_2.display()
 
-customers_4 = (customers_3
+customers_3 = (customers_2
     .select_plus(customers_loader))
 
-customers_5 = (customers_4
+customers_4 = (customers_3
     .select(customers_onecol)
     .prep_one_col(header_info=headfooters[('customer', 'header')],
                  trailer_info=headfooters[('customer', 'footer')]))
 
-customers_5.save_as_file(
+customers_4.save_as_file(
     f"{blob_path}/reports/customers/{cust_time}.csv",
     f"{blob_path}/reports/customers/tmp_delta",
     header=False)
@@ -179,7 +196,7 @@ customers_5.save_as_file(
 # COMMAND ----------
 
 print(f"customers/{cust_time}.csv")
-customers_5.display()
+customers_4.display()
 
 # COMMAND ----------
 
@@ -212,3 +229,54 @@ if haz_pagos:
     payments_3 = payments_2.select(payments_onecol)
 
     payments_3.display()
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC # Resultados
+
+# COMMAND ----------
+
+# MAGIC %md 
+# MAGIC ## 1. Longitud de filas
+
+# COMMAND ----------
+
+print("Filas CIS")
+(customers_4
+    .select(F.length(cis_name).alias('cis_longitud'))
+    .groupBy('cis_longitud')
+    .count()
+    .display())
+
+# COMMAND ----------
+
+print("Filas AIS")
+(accounts_3
+    .select(F.length(ais_name).alias('ais_longitud'))
+    .groupBy('ais_longitud')
+    .count()
+    .display())
+
+# COMMAND ----------
+
+# MAGIC %md 
+# MAGIC ## 2. Exploración de archivos
+
+# COMMAND ----------
+
+cis_path = f"{blob_path}/reports/customers/"
+print(f"""
+CIS Path:\t{cis_path}
+(horario UTC)"""[1:])
+(dirfiles_df(cis_path, spark)
+    .loc[:, ['name', 'modificationTime', 'size']])
+
+# COMMAND ----------
+
+ais_path = f"{blob_path}/reports/accounts/"
+print(f"""
+AIS Path:\t{ais_path}
+(horario UTC)"""[1:])
+(dirfiles_df(ais_path, spark)
+    .loc[:, ['name', 'modificationTime', 'size']])
