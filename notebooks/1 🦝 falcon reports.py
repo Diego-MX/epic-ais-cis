@@ -30,6 +30,7 @@ repo_path = True
 # pylint: disable=wrong-import-position
 # pylint: disable=wrong-import-order
 from datetime import datetime as dt, date
+from operator import methodcaller as ϱ, itemgetter
 from pathlib import Path
 import re
 from warnings import warn
@@ -38,6 +39,7 @@ import pandas as pd
 from pyspark.sql import functions as F, Row, SparkSession, Window as W
 from pyspark.dbutils import DBUtils     # pylint: disable=no-name-in-module,import-error
 from pytz import timezone as tz
+from toolz import compose
 
 spark = SparkSession.builder.getOrCreate()
 dbutils = DBUtils(spark)
@@ -56,7 +58,7 @@ datalake = app_resourcer['storage']
 dlk_permissions = app_agent.prep_dbks_permissions(datalake, 'gen2')
 app_resourcer.set_dbks_permissions(dlk_permissions)
 
-λ_name = lambda row: "{name}-{len}".format(**row)   # pylint: disable=consider-using-f-string
+λ_name = lambda r_tpl: "{name}-{len}".format(**r_tpl)   # pylint: disable=consider-using-f-string
 
 def get_time(a_tz="America/Mexico_City", time_fmt="%Y-%m-%d"):
     return dt.now(tz=tz(a_tz)).strftime(format=time_fmt)
@@ -64,12 +66,16 @@ def get_time(a_tz="America/Mexico_City", time_fmt="%Y-%m-%d"):
 # COMMAND ----------
 
 if match_clientes: 
-    customers_ids = (EpicDF(spark, dbks_tables['gld_client_file'])
-        .select('sap_client_id').distinct())
+    ids_c = (EpicDF(spark, dbks_tables['gld_client_file'])
+        .select('sap_client_id')
+        .distinct())
     which_ids = (EpicDF(spark, 'prd.hyrule.view_account_balance_mapper')
-        .withColumn('sap_client_id', F.col('client_id'))
+        .with_column_plus({
+            'BankAccountID': F.concat(F.lit('765'), F.col('cms_account_id')), 
+            'BorrowerID': F.col('client_id')})
         .distinct()
-        .join(customers_ids, on='sap_client_id', how='inner'))
+        .join(ids_c, how='inner', 
+            on=(ids_c['sap_client_id'] == F.col('BorrowerID'))))
     which_ids.display()
 
 if repo_path: 
@@ -88,8 +94,8 @@ acct_time = get_time()
 accounts_specs = (pd.read_feather(ref_path/'accounts_cols.feather')
         .rename(columns=falcon_rename))
 
-ais_longname = '~'.join(λ_name(rr)        # pylint: disable=invalid-name
-    for _, rr in accounts_specs.iterrows())
+ais_longname = '~'.join(λ_name(rr) 
+        for _, rr in accounts_specs.iterrows())
 ais_name = ais_longname if nombre_columna else 'ais-columna-fixed-width'
 
 accounts_extract = falcon_builder.get_extract(accounts_specs, 'delta')
@@ -102,9 +108,8 @@ accounts_tbl = (dbks_tables['gld_cx_collections_loans']
 
 if match_clientes: 
     accounts_0 = (EpicDF(spark, accounts_tbl)
-        .join(which_ids, on='client_id', how='semi')
-        .with_column_renamed_plus({
-            'client_id': 'BorrowerID', 'cms_account_id': 'BankAccountID'}))
+        .join(which_ids, how='inner', 
+              on=F.col('BorrowerID') == which_ids['client_id']))
 else: 
     accounts_0 = EpicDF(spark, accounts_tbl)
 
@@ -126,10 +131,6 @@ accounts_3.save_as_file(
     f"{blob_path}/reports/accounts/{acct_time}.csv",
     f"{blob_path}/reports/accounts/tmp_delta",
     header=False)
-
-# COMMAND ----------
-
-accounts_loader = falcon_builder.get_loader(accounts_specs, 'fixed-width')
 
 # COMMAND ----------
 
@@ -167,8 +168,7 @@ else:
     customers_0 = EpicDF(spark, dbks_tables['gld_client_file'])
 
 customers_1= EpicDF(customers_0
-    .drop('bureau_req_ts', *(a_col for a_col in customers_0.columns
-        if a_col.startswith('ben_')))
+    .drop('bureau_req_ts', *filter(ϱ('startswith', 'ben_'), customers_0.columns))
     .distinct())
 
 customers_2 = EpicDF(customers_1
@@ -211,7 +211,7 @@ if haz_pagos:
     payments_specs = (pd.read_feather(ref_path/'payments_cols.feather')
             .rename(columns=falcon_rename))
 
-    one_column = '~'.join(λ_name(rr) for _, rr in payments_specs.iterrows())    # pylint: disable=invalid-name
+    one_column = '~'.join(map(λ_name, payments_specs.itertuples()))    # pylint: disable=invalid-name
     payments_extract = falcon_builder.get_extract(payments_specs, 'delta')
     payments_loader = falcon_builder.get_loader(payments_specs, 'fixed-width')
     payments_onecol = (F.concat(*payments_specs['name'].values)
