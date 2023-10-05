@@ -66,10 +66,11 @@ def get_time(a_tz="America/Mexico_City", time_fmt="%Y-%m-%d"):
 if match_clientes: 
     customers_ids = (EpicDF(spark, dbks_tables['gld_client_file'])
         .select('sap_client_id').distinct())
-
     which_ids = (EpicDF(spark, 'prd.hyrule.view_account_balance_mapper')
-        .select('client_id', F.col('client_id').alias('sap_client_id')).distinct()
+        .withColumn('sap_client_id', F.col('client_id'))
+        .distinct()
         .join(customers_ids, on='sap_client_id', how='inner'))
+    which_ids.display()
 
 if repo_path: 
     ref_path = Path("../refs/upload-specs")
@@ -101,13 +102,13 @@ accounts_tbl = (dbks_tables['gld_cx_collections_loans']
 
 if match_clientes: 
     accounts_0 = (EpicDF(spark, accounts_tbl)
-        .join(which_ids, on='client_id', how='semi'))
+        .join(which_ids, on='client_id', how='semi')
+        .with_column_renamed_plus({
+            'client_id': 'BorrowerID', 'cms_account_id': 'BankAccountID'}))
 else: 
     accounts_0 = EpicDF(spark, accounts_tbl)
 
 accounts_1 = (accounts_0
-    .with_column_renamed_plus({
-        'client_id': 'BorrowerID', 'core_account_id': 'BankAccountID'})
     .withColumn('type', F.lit('D'))
     .select_plus(accounts_extract['gld_cx_collections_loans'])
     .with_column_plus(accounts_extract['_val'])
