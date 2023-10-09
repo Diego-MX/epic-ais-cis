@@ -2,16 +2,14 @@
 # MAGIC %md
 # MAGIC # Tablas de Falcon
 # MAGIC
-# MAGIC En este _notebook_ se ejecutan las actualizaciones de las tablas de Falcon.
+# MAGIC En este _notebook_ se ejecutan las actualizaciones de las tablas de Falcon.  
 # MAGIC Las secciones del _notebook_ son:  
-# MAGIC `-1` Desarrollo  
-# MAGIC `0`  Preparación  
-# MAGIC `1.1` Clientes  
-# MAGIC `1.2` Ejecutamos las tablas una por una, para tener visibilidad de errores:  
-# MAGIC   
-# MAGIC * Clientes  
-# MAGIC * Cuentas  
-# MAGIC * Pagos
+# MAGIC `0` Desarrollo y preparación  
+# MAGIC `1` Tablas  
+# MAGIC   `1.1`  Cuentas  
+# MAGIC   `1.2`  Clientes  
+# MAGIC   `1.3`  Pagos  
+# MAGIC `2` Resultados: incluye análisis generales para validar la ejecución.   
 
 # COMMAND ----------
 
@@ -108,8 +106,7 @@ accounts_tbl = (dbks_tables['gld_cx_collections_loans']
 
 if match_clientes: 
     accounts_0 = (EpicDF(spark, accounts_tbl)
-        .join(which_ids, how='inner', 
-              on=F.col('BorrowerID') == which_ids['client_id']))
+        .join(which_ids, how='inner', on='client_id'))
 else: 
     accounts_0 = EpicDF(spark, accounts_tbl)
 
@@ -130,7 +127,7 @@ accounts_3 = (accounts_2
 accounts_3.save_as_file(
     f"{blob_path}/reports/accounts/{acct_time}.csv",
     f"{blob_path}/reports/accounts/tmp_delta",
-    header=False)
+    header=False, ignoreTrailingWhiteSpace=False, ignoreLeadingWhiteSpace=False)
 
 # COMMAND ----------
 
@@ -192,7 +189,7 @@ customers_4 = (customers_3
 customers_4.save_as_file(
     f"{blob_path}/reports/customers/{cust_time}.csv",
     f"{blob_path}/reports/customers/tmp_delta",
-    header=False)
+    header=False, ignoreTrailingWhiteSpace=False, ignoreLeadingWhiteSpace=False)
 
 # COMMAND ----------
 
@@ -243,19 +240,23 @@ if haz_pagos:
 
 # COMMAND ----------
 
-print("Filas CIS")
-(customers_4
-    .select(F.length(cis_name).alias('cis_longitud'))
-    .groupBy('cis_longitud')
+print("Filas AIS-post escritura")
+post_ais = (spark.read.format('csv')
+    .load(f"{blob_path}/reports/accounts/{cust_time}.csv"))
+(post_ais
+    .select(F.length('_c0').alias('ais_longitud'))
+    .groupBy('ais_longitud')
     .count()
     .display())
 
 # COMMAND ----------
 
-print("Filas AIS")
-(accounts_3
-    .select(F.length(ais_name).alias('ais_longitud'))
-    .groupBy('ais_longitud')
+print("Filas CIS-post escritura")
+post_cis = (spark.read.format('csv')
+    .load(f"{blob_path}/reports/customers/{cust_time}.csv"))
+(post_cis
+    .select(F.length('_c0').alias('cis_longitud'))
+    .groupBy('cis_longitud')
     .count()
     .display())
 
