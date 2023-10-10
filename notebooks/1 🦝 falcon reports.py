@@ -69,7 +69,8 @@ if match_clientes:
         .distinct())
     which_ids = (EpicDF(spark, 'prd.hyrule.view_account_balance_mapper')
         .with_column_plus({
-            'BankAccountID': F.concat(F.lit('765'), F.col('cms_account_id')), 
+            'BankAccountID': F.substring('core_account_id', 1, 11), 
+            # referencia de 19 dígitos:  F.concat(F.lit('765'), F.col('cms_account_id')), 
             'BorrowerID': F.col('client_id')})
         .distinct()
         .join(ids_c, how='inner', 
