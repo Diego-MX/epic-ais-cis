@@ -13,42 +13,78 @@
 
 # COMMAND ----------
 
-# MAGIC %run ./0_install_nb_reqs
-
-# COMMAND ----------
-
-# pylint: disable=invalid-name
-haz_pagos = False
-match_clientes = True
-nombre_columna = False
-repo_path = True
+from src import dependencies as deps
+deps.from_reqsfile('../reqs_dbks.txt')
+deps.gh_epicpy('gh-1.3', 
+    tokenfile='../user_databricks.yml', typing=False, verbose=True)
 
 # COMMAND ----------
 
 # pylint: disable=wrong-import-position
 # pylint: disable=wrong-import-order
-from datetime import datetime as dt, date
-from operator import methodcaller as ϱ, itemgetter
+# pylint: disable=invalid-name
+from datetime import datetime as dt
+from operator import methodcaller as ϱ, eq
+from os import getenv
 from pathlib import Path
-import re
+from pytz import timezone as tz
 from warnings import warn
 
 import pandas as pd
-from pyspark.sql import functions as F, Row, SparkSession, Window as W
+from pyspark.sql import functions as F, Row, SparkSession   # pylint: disable=import-error
 from pyspark.dbutils import DBUtils     # pylint: disable=no-name-in-module,import-error
-from pytz import timezone as tz
-from toolz import compose
+from toolz import curry, pipe
+
+from epic_py.delta import EpicDF, EpicDataBuilder
+from epic_py.tools import dirfiles_df
+
+from src.head_foot import headfooters   # pylint: disable=ungrouped-imports
+from config import (app_agent, app_resourcer, blob_path,
+    dbks_tables, falcon_handler, falcon_rename)
 
 spark = SparkSession.builder.getOrCreate()
 dbutils = DBUtils(spark)
 
 # COMMAND ----------
 
-from epic_py.delta import EpicDF, EpicDataBuilder
-from epic_py.tools import dirfiles_df
-from src.head_foot import headfooters
-from config import (app_agent, app_resourcer, blob_path,
-    dbks_tables, falcon_handler, falcon_rename)
+WORKFLOW_STUB = False   # Se cambió RBTRAN por MODELSTUB. 
+MATCH_CLIENTS = True   # Se refuerza que CLIENTS ~ ACCOUNTS sean los mismos.
+COL_DEBUG = False  # 
+
+w_get = dbutils.widgets.get
+
+λ_name = lambda row: "{name}-{len}".format(**row)   # pylint: disable=consider-using-f-string
+
+equal_to = curry(eq)
+
+def replace_if(eq_val, rep_val): 
+    return (lambda xx: rep_val if xx == eq_val else xx)
+
+def get_time(a_tz="America/Mexico_City", time_fmt="%Y-%m-%d"):
+    return dt.now(tz=tz(a_tz)).strftime(format=time_fmt)
+
+date_str = lambda ss: dt.strptime(ss, '%Y-%m-%d').date()
+
+dates_by_env = {'qas': '2022-01-01', 'prd': '2023-05-01', None: '2023-01-01'}
+default_date = dates_by_env.get(getenv('ENV_TYPE'), dates_by_env[None])
+default_path = "../refs/upload-specs"
+
+dbutils.widgets.text('Con Pagos', 'false', "Ejecutar PIS-Payment Info. Sec.")
+dbutils.widgets.text('F. Inicio', 'yyyy-mm-dd', "Horizonte de Reporte")
+dbutils.widgets.text('Specs Local', 'true', "Archivo Feather p. Specs en Repo")
+
+# COMMAND ----------
+
+haz_pagos = pipe(w_get('Con Pagos'), 
+    ϱ('lower'), equal_to('true'))
+
+date_input = pipe(w_get('F. Inicio'), 
+    replace_if('yyyy-mm-dd', default_date), 
+    date_str)
+
+ref_path = pipe(w_get('Specs Local'), 
+    replace_if('true', default_path), 
+    Path)
 
 falcon_builder = EpicDataBuilder(typehandler=falcon_handler)
 
@@ -56,14 +92,10 @@ datalake = app_resourcer['storage']
 dlk_permissions = app_agent.prep_dbks_permissions(datalake, 'gen2')
 app_resourcer.set_dbks_permissions(dlk_permissions)
 
-λ_name = lambda r_tpl: "{name}-{len}".format(**r_tpl)   # pylint: disable=consider-using-f-string
-
-def get_time(a_tz="America/Mexico_City", time_fmt="%Y-%m-%d"):
-    return dt.now(tz=tz(a_tz)).strftime(format=time_fmt)
 
 # COMMAND ----------
 
-if match_clientes: 
+if MATCH_CLIENTS: 
     ids_c = (EpicDF(spark, dbks_tables['gld_client_file'])
         .select('sap_client_id')
         .distinct())
@@ -77,10 +109,6 @@ if match_clientes:
             on=(ids_c['sap_client_id'] == F.col('BorrowerID'))))
     which_ids.display()
 
-if repo_path: 
-    ref_path = Path("../refs/upload-specs")
-else: 
-    warn("Havent implemented REF_PATH for Blob Path (opposite to Repo Path).")
 
 # COMMAND ----------
 
@@ -95,7 +123,7 @@ accounts_specs = (pd.read_feather(ref_path/'accounts_cols.feather')
 
 ais_longname = '~'.join(λ_name(rr) 
         for _, rr in accounts_specs.iterrows())
-ais_name = ais_longname if nombre_columna else 'ais-columna-fixed-width'
+ais_name = ais_longname if COL_DEBUG else 'ais-columna-fixed-width'
 
 accounts_extract = falcon_builder.get_extract(accounts_specs, 'delta')
 accounts_loader = falcon_builder.get_loader(accounts_specs, 'fixed-width')
@@ -103,9 +131,9 @@ accounts_onecol = (F.concat(*accounts_specs['name'].values)
     .alias(ais_name))
 
 accounts_tbl = (dbks_tables['gld_cx_collections_loans'] 
-    if not match_clientes else 'prd.hyrule.view_account_balance_mapper')
+    if not MATCH_CLIENTS else 'prd.hyrule.view_account_balance_mapper')
 
-if match_clientes: 
+if MATCH_CLIENTS: 
     accounts_0 = (EpicDF(spark, accounts_tbl)
         .join(which_ids, how='inner', on='client_id'))
 else: 
@@ -146,9 +174,13 @@ accounts_3.display()
 cust_time = get_time()
 customers_specs = (pd.read_feather(ref_path/'customers_cols.feather')
     .rename(columns=falcon_rename))
+customers_specs.loc[1, 'column'] = 'modelSTUB' if WORKFLOW_STUB else 'RBTRAN'
 
 cis_longname = '~'.join(λ_name(rr) for _, rr in customers_specs.iterrows())
-cis_name = cis_longname if nombre_columna else 'cis-columna-fixed-width'
+cis_name = cis_longname if COL_DEBUG else 'cis-columna-fixed-width'
+
+name_onecol = '~'.join(λ_name(rr)       # pylint: disable=invalid-name
+    for _, rr in customers_specs.iterrows())
 
 customers_extract = falcon_builder.get_extract(customers_specs, 'delta')
 customers_loader  = falcon_builder.get_loader(customers_specs, 'fixed-width')
@@ -159,7 +191,7 @@ gender_df = spark.createDataFrame([
     Row(gender='H', gender_new='M'), 
     Row(gender='M', gender_new='F')])
 
-if match_clientes: 
+if MATCH_CLIENTS: 
     customers_0 = (EpicDF(spark, dbks_tables['gld_client_file'])
         .join(which_ids, on='sap_client_id', how='semi'))
 else: 
@@ -195,7 +227,54 @@ customers_4.save_as_file(
 # COMMAND ----------
 
 print(f"customers/{cust_time}.csv")
-customers_4.display()
+customers_3.display()
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Cuentas
+
+# COMMAND ----------
+
+acct_time = get_time()
+accounts_specs = (pd.read_feather(ref_path/'accounts_cols.feather')
+        .rename(columns=falcon_rename))
+
+accounts_specs.loc[1, 'column'] = 'modelSTUB' if WORKFLOW_STUB else 'RBTRAN'
+
+onecol_account = '~'.join(λ_name(rr)        # pylint: disable=invalid-name
+    for _, rr in accounts_specs.iterrows())
+
+accounts_extract = falcon_builder.get_extract(accounts_specs, 'delta')
+accounts_loader = falcon_builder.get_loader(accounts_specs, 'fixed-width')
+accounts_onecol = (F.concat(*accounts_specs['name'].values)
+    .alias(onecol_account))
+
+accounts_1 = (EpicDF(spark, dbks_tables['gld_cx_collections_loans'])
+    .select_plus(accounts_extract['gld_cx_collections_loans'])
+    .with_column_plus(accounts_extract['_val'])
+    .with_column_plus(accounts_extract['None'])
+    .join(customers_1, on='customerIdFromHeader', how='semi'))
+
+accounts_2 = accounts_1.select_plus(accounts_loader)
+
+accounts_2.display()
+
+accounts_3 = (accounts_2
+    .select(accounts_onecol)
+    .prep_one_col(header_info=headfooters[('account', 'header')],
+                 trailer_info=headfooters[('account', 'footer')]))
+
+accounts_3.save_as_file(
+    f"{blob_path}/reports/accounts/{acct_time}.csv",
+    f"{blob_path}/reports/accounts/tmp_delta",
+    header=False)
+
+# COMMAND ----------
+
+print(f"accounts/{acct_time}.csv")
+accounts_3.display()
+
 
 # COMMAND ----------
 
@@ -208,8 +287,10 @@ if haz_pagos:
     pymt_time = get_time()
     payments_specs = (pd.read_feather(ref_path/'payments_cols.feather')
             .rename(columns=falcon_rename))
+    payments_specs.loc[1, 'column'] = 'modelSTUB' if WORKFLOW_STUB else 'RBTRAN'
 
     one_column = '~'.join(map(λ_name, payments_specs.itertuples()))    # pylint: disable=invalid-name
+
     payments_extract = falcon_builder.get_extract(payments_specs, 'delta')
     payments_loader = falcon_builder.get_loader(payments_specs, 'fixed-width')
     payments_onecol = (F.concat(*payments_specs['name'].values)
@@ -272,7 +353,7 @@ cis_path = f"{blob_path}/reports/customers/"
 print(f"""
 CIS Path:\t{cis_path}
 (horario UTC)"""[1:])
-(dirfiles_df(cis_path, spark)
+(dirfiles_df(cis_path, spark)   # pylint: disable=expression-not-assigned
     .loc[:, ['name', 'modificationTime', 'size']])
 
 # COMMAND ----------
@@ -281,5 +362,5 @@ ais_path = f"{blob_path}/reports/accounts/"
 print(f"""
 AIS Path:\t{ais_path}
 (horario UTC)"""[1:])
-(dirfiles_df(ais_path, spark)
+(dirfiles_df(ais_path, spark)   # pylint: disable=expression-not-assigned
     .loc[:, ['name', 'modificationTime', 'size']])
