@@ -53,6 +53,7 @@ DBKS_MAPPING = { # Key from Excel Refs, Value on DBKS metastore.
     'gld_cx_collections_loans': 'nayru_accounts.gld_cx_collections_loans'
 }
 
+
 ## Project-wide technical variables.
 
 ENV = os.getenv('ENV_TYPE')
@@ -62,7 +63,6 @@ app_agent = EpicIdentity.create(server=SERVER, config=SETUP_KEYS[ENV])
 app_resourcer = app_agent.get_resourcer(AZURE_RESOURCES[ENV], check_all=False)
 
 dbks_tables = DBKS_MAPPING
-
 blob_path = (app_resourcer.get_resource_url('abfss', 'storage',
         container='gold', blob_path=True))
 
@@ -70,9 +70,9 @@ falcon_handler = TypeHandler({
     'int' : {'NA_str': ''}, 
     'long': {'NA_str': ''},
     'dbl' : {'NA_str': ''}, 
-    'str' : {'NA_str': ''},
+    'str' : {'NA_str': '', 'encoding': 'ascii'},
     'date': {'NA_str': ' '*8, 'c_format': '%8s'},
-    'ts'  : {'NA_str': ' '*6, 'c_format': '%8s'}})
+    'ts'  : {'NA_str': ' '*6, 'c_format': '%6s'}})
 
 falcon_rename = {
     'FieldName' : 'name',

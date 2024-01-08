@@ -15,49 +15,82 @@
 
 # COMMAND ----------
 
-# MAGIC %run ./0_install_nb_reqs
-
-# COMMAND ----------
-
-haz_pagos = False       # pylint: disable=invalid-name
+from src import dependencies as deps
+deps.from_reqsfile('../reqs_dbks.txt')
+deps.gh_epicpy('gh-1.3', 
+    tokenfile='../user_databricks.yml', typing=False, verbose=True)
 
 # COMMAND ----------
 
 # pylint: disable=wrong-import-position
 # pylint: disable=wrong-import-order
 from datetime import datetime as dt, date
+from operator import itemgetter as ɣ, methodcaller as ϱ, eq
+from os import getenv
+from pathlib import Path
 from pytz import timezone as tz
 
 import pandas as pd
 from pyspark.sql import functions as F, SparkSession, Window as W 
 from pyspark.dbutils import DBUtils     # pylint: disable=no-name-in-module,import-error
+from toolz import curry, pipe
+
+from epic_py.delta import EpicDF, EpicDataBuilder
+from epic_py.tools import as_callable, dirfiles_df, partial2
+
+from src.head_foot import headfooters
+from config import (app_agent, app_resourcer, blob_path,
+    dbks_tables, falcon_handler, falcon_rename, ENV)
 
 spark = SparkSession.builder.getOrCreate()
 dbutils = DBUtils(spark)
 
 # COMMAND ----------
 
-from pathlib import Path
-ref_path = Path("../refs/upload-specs")
+WORKFLOW_STUB = False  # En las pruebas se cambió RBTRAN por MODELSTUB. 
+
+w_get = dbutils.widgets.get
+
+λ_name = lambda row: "{name}-{len}".format(**row)   # pylint: disable=consider-using-f-string
+
+equal_to = curry(eq)
+
+def replace_if(eq_val, rep_val): 
+    return (lambda xx: rep_val if xx == eq_val else xx)
+
+def get_time(a_tz="America/Mexico_City", time_fmt="%Y-%m-%d"):
+    return dt.now(tz=tz(a_tz)).strftime(format=time_fmt)
+
+date_str = lambda ss: dt.strptime(ss, '%Y-%m-%d').date()
 
 # COMMAND ----------
 
-from epic_py.delta import EpicDF, EpicDataBuilder
-from epic_py.tools import dirfiles_df
-from src.head_foot import headfooters
-from config import (app_agent, app_resourcer, blob_path,
-    dbks_tables, falcon_handler, falcon_rename)
+dates_by_env = {'qas': '2022-01-01', 'prd': '2023-05-01', None: '2023-01-01'}
+default_date = dates_by_env.get(getenv('ENV_TYPE'), dates_by_env[None])
+default_path = "../refs/upload-specs"
+
+dbutils.widgets.text('Con Pagos', 'false', "Ejecutar PIS-Payment Info. Sec.")
+dbutils.widgets.text('F. Inicio', 'yyyy-mm-dd', "Horizonte de Reporte")
+dbutils.widgets.text('Specs Local', 'true', "Archivo Feather p. Specs en Repo")
+
+# COMMAND ----------
+
+haz_pagos = pipe(w_get('Con Pagos'), 
+    ϱ('lower'), equal_to('true'))
+
+date_input = pipe(w_get('F. Inicio'), 
+    replace_if('yyyy-mm-dd', default_date), 
+    date_str)
+
+ref_path = pipe(w_get('Specs Local'), 
+    replace_if('true', default_path), 
+    Path)
 
 falcon_builder = EpicDataBuilder(typehandler=falcon_handler)
 
 datalake = app_resourcer['storage']
 dlk_permissions = app_agent.prep_dbks_permissions(datalake, 'gen2')
 app_resourcer.set_dbks_permissions(dlk_permissions)
-
-λ_name = lambda row: "{name}-{len}".format(**row)   # pylint: disable=consider-using-f-string
-
-def get_time(a_tz="America/Mexico_City", time_fmt="%Y-%m-%d"):
-    return dt.now(tz=tz(a_tz)).strftime(format=time_fmt)
 
 # COMMAND ----------
 
@@ -70,6 +103,8 @@ def get_time(a_tz="America/Mexico_City", time_fmt="%Y-%m-%d"):
 cust_time = get_time()
 customers_specs = (pd.read_feather(ref_path/'customers_cols.feather')
     .rename(columns=falcon_rename))
+
+customers_specs.loc[1, 'column'] = 'modelSTUB' if WORKFLOW_STUB else 'RBTRAN'
 
 name_onecol = '~'.join(λ_name(rr)       # pylint: disable=invalid-name
     for _, rr in customers_specs.iterrows())
@@ -84,9 +119,9 @@ w_client = (W.partitionBy('sap_client_id')
 
 customers_1= (EpicDF(spark, dbks_tables['gld_client_file'])
     .withColumn('terms_ts', F.to_timestamp('terms_and_cond_geo_ts'))
-    .filter(F.col('terms_ts') >= date(2023, 5, 1))
+    .filter(F.col('terms_ts') >= date_input)
     .withColumn('rank_ts', F.row_number().over(w_client))
-    .filter((F.col('rank_ts') == 1)) 
+    .filter(F.col('rank_ts') == 1) 
     .with_column_plus(customers_extract['gld_client_file'])
     .with_column_plus(customers_extract['_val'])
     .with_column_plus(customers_extract['None']))
@@ -120,6 +155,8 @@ acct_time = get_time()
 accounts_specs = (pd.read_feather(ref_path/'accounts_cols.feather')
         .rename(columns=falcon_rename))
 
+accounts_specs.loc[1, 'column'] = 'modelSTUB' if WORKFLOW_STUB else 'RBTRAN'
+
 onecol_account = '~'.join(λ_name(rr)        # pylint: disable=invalid-name
     for _, rr in accounts_specs.iterrows())
 
@@ -131,7 +168,8 @@ accounts_onecol = (F.concat(*accounts_specs['name'].values)
 accounts_1 = (EpicDF(spark, dbks_tables['gld_cx_collections_loans'])
     .select_plus(accounts_extract['gld_cx_collections_loans'])
     .with_column_plus(accounts_extract['_val'])
-    .with_column_plus(accounts_extract['None']))
+    .with_column_plus(accounts_extract['None'])
+    .join(customers_1, on='customerIdFromHeader', how='semi'))
 
 accounts_2 = accounts_1.select_plus(accounts_loader)
 
@@ -163,6 +201,8 @@ if haz_pagos:
     pymt_time = get_time()
     payments_specs = (pd.read_feather(ref_path/'payments_cols.feather')
             .rename(columns=falcon_rename))
+
+    payments_specs.loc[1, 'column'] = 'modelSTUB' if WORKFLOW_STUB else 'RBTRAN'
 
     one_column = '~'.join(λ_name(rr) for _, rr in payments_specs.iterrows())    # pylint: disable=invalid-name
     payments_extract = falcon_builder.get_extract(payments_specs, 'delta')
