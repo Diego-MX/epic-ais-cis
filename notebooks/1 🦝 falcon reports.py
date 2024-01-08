@@ -14,7 +14,6 @@
 # COMMAND ----------
 
 from src import dependencies as deps
-deps.from_reqsfile('../reqs_dbks.txt')
 deps.gh_epicpy('gh-1.3', 
     tokenfile='../user_databricks.yml', typing=False, verbose=True)
 
@@ -48,7 +47,7 @@ dbutils = DBUtils(spark)
 # COMMAND ----------
 
 WORKFLOW_STUB = False   # Se cambió RBTRAN por MODELSTUB. 
-MATCH_CLIENTS = True   # Se refuerza que CLIENTS ~ ACCOUNTS sean los mismos.
+MATCH_CLIENTS = False   # Se refuerza que CLIENTS ~ ACCOUNTS sean los mismos.
 COL_DEBUG = False  # 
 
 w_get = dbutils.widgets.get
@@ -120,6 +119,7 @@ if MATCH_CLIENTS:
 acct_time = get_time()
 accounts_specs = (pd.read_feather(ref_path/'accounts_cols.feather')
         .rename(columns=falcon_rename))
+accounts_specs.loc[1, 'column'] = 'modelSTUB' if WORKFLOW_STUB else 'RBTRAN'
 
 ais_longname = '~'.join(λ_name(rr) 
         for _, rr in accounts_specs.iterrows())
@@ -233,48 +233,6 @@ customers_3.display()
 
 # MAGIC %md
 # MAGIC ## Cuentas
-
-# COMMAND ----------
-
-acct_time = get_time()
-accounts_specs = (pd.read_feather(ref_path/'accounts_cols.feather')
-        .rename(columns=falcon_rename))
-
-accounts_specs.loc[1, 'column'] = 'modelSTUB' if WORKFLOW_STUB else 'RBTRAN'
-
-onecol_account = '~'.join(λ_name(rr)        # pylint: disable=invalid-name
-    for _, rr in accounts_specs.iterrows())
-
-accounts_extract = falcon_builder.get_extract(accounts_specs, 'delta')
-accounts_loader = falcon_builder.get_loader(accounts_specs, 'fixed-width')
-accounts_onecol = (F.concat(*accounts_specs['name'].values)
-    .alias(onecol_account))
-
-accounts_1 = (EpicDF(spark, dbks_tables['gld_cx_collections_loans'])
-    .select_plus(accounts_extract['gld_cx_collections_loans'])
-    .with_column_plus(accounts_extract['_val'])
-    .with_column_plus(accounts_extract['None'])
-    .join(customers_1, on='customerIdFromHeader', how='semi'))
-
-accounts_2 = accounts_1.select_plus(accounts_loader)
-
-accounts_2.display()
-
-accounts_3 = (accounts_2
-    .select(accounts_onecol)
-    .prep_one_col(header_info=headfooters[('account', 'header')],
-                 trailer_info=headfooters[('account', 'footer')]))
-
-accounts_3.save_as_file(
-    f"{blob_path}/reports/accounts/{acct_time}.csv",
-    f"{blob_path}/reports/accounts/tmp_delta",
-    header=False)
-
-# COMMAND ----------
-
-print(f"accounts/{acct_time}.csv")
-accounts_3.display()
-
 
 # COMMAND ----------
 
