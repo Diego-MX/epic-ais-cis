@@ -14,7 +14,7 @@
 # COMMAND ----------
 
 from src import dependencies as deps
-deps.gh_epicpy('gh-1.3', 
+deps.gh_epicpy('meetme-1', 
     tokenfile='../user_databricks.yml', typing=False, verbose=True)
 
 # COMMAND ----------
@@ -228,13 +228,6 @@ customers_4.save_as_file(
 
 print(f"customers/{cust_time}.csv")
 customers_3.display()
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## Cuentas
-
-# COMMAND ----------
 
 # MAGIC %md
 # MAGIC ## Pagos
