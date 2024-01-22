@@ -1,11 +1,14 @@
 # DX, Epic Bank
 # CDMX, 17 octubre '23
 
+# pylint: disable=import-error
+# pylint: disable=import-outside-toplevel
+# pylint: disable=useless-return
 from json import dumps
 from subprocess import check_call
 from pkg_resources import working_set
-from pyspark.dbutils import DBUtils     # pylint: disable=import-error,no-name-in-module
-from pyspark.sql import SparkSession    # pylint: disable=import-error
+from pyspark.dbutils import DBUtils     # pylint: disable=no-name-in-module
+from pyspark.sql import SparkSession  
 has_yaml = 'yaml' in working_set.by_key
 
 REQS_FILE = '../reqs_dbks.txt'
@@ -36,8 +39,8 @@ def gh_epicpy(ref=None, tokenfile=None, typing=None, verbose=False):
 def token_from_userfile(userfile):
     if not has_yaml: 
         pip_install('pyyaml==6.0.1')
-    from yaml import safe_load
-    with open(userfile, 'r') as _f:        # pylint: disable=unspecified-encoding
+    from yaml import safe_load         
+    with open(userfile, 'r') as _f:     # pylint: disable=unspecified-encoding
         tokener = safe_load(_f)
     spark = SparkSession.builder.getOrCreate()
     dbutils = DBUtils(spark)

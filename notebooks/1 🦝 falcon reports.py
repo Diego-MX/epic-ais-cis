@@ -97,10 +97,11 @@ if MATCH_CLIENTS:
     ids_c = (EpicDF(spark, dbks_tables['gld_client_file'])
         .select('sap_client_id')
         .distinct())
-    which_ids = (EpicDF(spark, 'prd.hyrule.view_account_balance_mapper')
+    
+    # referencia de 19 dígitos:  F.concat(F.lit('765'), F.col('cms_account_id')), 
+    which_ids = (EpicDF(spark, dbks_tables['match_clients'])
         .with_column_plus({
             'BankAccountID': F.substring('core_account_id', 1, 11), 
-            # referencia de 19 dígitos:  F.concat(F.lit('765'), F.col('cms_account_id')), 
             'BorrowerID': F.col('client_id')})
         .distinct()
         .join(ids_c, how='inner', 
