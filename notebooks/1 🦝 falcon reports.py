@@ -229,6 +229,8 @@ customers_4.save_as_file(
 print(f"customers/{cust_time}.csv")
 customers_3.display()
 
+# COMMAND ----------
+
 # MAGIC %md
 # MAGIC ## Pagos
 
