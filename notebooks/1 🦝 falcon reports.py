@@ -27,7 +27,6 @@ from operator import methodcaller as ϱ, eq
 from os import getenv
 from pathlib import Path
 from pytz import timezone as tz
-from warnings import warn
 
 import pandas as pd
 from pyspark.sql import functions as F, Row, SparkSession   # pylint: disable=import-error

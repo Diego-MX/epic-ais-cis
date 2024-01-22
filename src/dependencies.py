@@ -2,12 +2,10 @@
 # CDMX, 17 octubre '23
 
 from json import dumps
-from pathlib import Path
-from pkg_resources import working_set
 from subprocess import check_call
-from sys import argv
+from pkg_resources import working_set
 from pyspark.dbutils import DBUtils     # pylint: disable=import-error,no-name-in-module
-from pyspark.sql import SparkSession
+from pyspark.sql import SparkSession    # pylint: disable=import-error
 has_yaml = 'yaml' in working_set.by_key
 
 REQS_FILE = '../reqs_dbks.txt'
@@ -23,7 +21,7 @@ def from_reqsfile(a_file=None):
 def gh_epicpy(ref=None, tokenfile=None, typing=None, verbose=False): 
     if typing: 
         v_typing = V_TYPING if typing is True else typing
-        pip_install('--upgrade', f"typing-extensions=={typing}")
+        pip_install('--upgrade', f"typing-extensions=={v_typing}")
     the_keys = {
         'url'  : 'github.com/Bineo2/data-python-tools.git', 
         'token': token_from_userfile(tokenfile), 
