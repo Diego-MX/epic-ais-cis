@@ -45,10 +45,6 @@ dbutils = DBUtils(spark)
 
 # COMMAND ----------
 
-WORKFLOW_STUB = False   # Se cambió RBTRAN por MODELSTUB. 
-MATCH_CLIENTS = False   # Se refuerza que CLIENTS ~ ACCOUNTS sean los mismos.
-COL_DEBUG = False  # 
-
 w_get = dbutils.widgets.get
 
 λ_name = lambda row: "{name}-{len}".format(**row)   # pylint: disable=consider-using-f-string
@@ -64,25 +60,28 @@ def get_time(a_tz="America/Mexico_City", time_fmt="%Y-%m-%d"):
 date_str = lambda ss: dt.strptime(ss, '%Y-%m-%d').date()
 
 dates_by_env = {'qas': '2022-01-01', 'prd': '2023-05-01', None: '2023-01-01'}
-default_date = dates_by_env.get(getenv('ENV_TYPE'), dates_by_env[None])
 default_path = "../refs/upload-specs"
 
 dbutils.widgets.text('Con Pagos', 'false', "Ejecutar PIS-Payment Info. Sec.")
-dbutils.widgets.text('F. Inicio', 'yyyy-mm-dd', "Horizonte de Reporte")
+dbutils.widgets.text('Workflow Stub', 'true', "Nombre de workflow como campo en reportes.")
+dbutils.widgets.text('Hack Clients', 'false', "Hack para empatar los clientes de CIS y AIS.")
 dbutils.widgets.text('Specs Local', 'true', "Archivo Feather p. Specs en Repo")
+
 
 # COMMAND ----------
 
 haz_pagos = pipe(w_get('Con Pagos'), 
     ϱ('lower'), equal_to('true'))
 
-date_input = pipe(w_get('F. Inicio'), 
-    replace_if('yyyy-mm-dd', default_date), 
-    date_str)
-
 ref_path = pipe(w_get('Specs Local'), 
     replace_if('true', default_path), 
     Path)
+
+w_stub = pipe(w_get('Workflow Stub'), 
+    ϱ('lower'), equal_to('true'))
+
+hack_clients = pipe(w_get('Hack Clients'),
+    ϱ('lower'), equal_to('true'))
 
 falcon_builder = EpicDataBuilder(typehandler=falcon_handler)
 
@@ -93,7 +92,9 @@ app_resourcer.set_dbks_permissions(dlk_permissions)
 
 # COMMAND ----------
 
-if MATCH_CLIENTS: 
+COL_DEBUG = False
+
+if hack_clients: 
     ids_c = (EpicDF(spark, dbks_tables['gld_client_file'])
         .select('sap_client_id')
         .distinct())
@@ -119,7 +120,7 @@ if MATCH_CLIENTS:
 acct_time = get_time()
 accounts_specs = (pd.read_feather(ref_path/'accounts_cols.feather')
         .rename(columns=falcon_rename))
-accounts_specs.loc[1, 'column'] = 'modelSTUB' if WORKFLOW_STUB else 'RBTRAN'
+accounts_specs.loc[1, 'column'] = 'modelSTUB' if w_stub else 'RBTRAN'
 
 ais_longname = '~'.join(λ_name(rr) 
         for _, rr in accounts_specs.iterrows())
@@ -131,9 +132,9 @@ accounts_onecol = (F.concat(*accounts_specs['name'].values)
     .alias(ais_name))
 
 accounts_tbl = (dbks_tables['gld_cx_collections_loans'] 
-    if not MATCH_CLIENTS else 'prd.hyrule.view_account_balance_mapper')
+    if not hack_clients else 'prd.hyrule.view_account_balance_mapper')
 
-if MATCH_CLIENTS: 
+if hack_clients: 
     accounts_0 = (EpicDF(spark, accounts_tbl)
         .join(which_ids, how='inner', on='client_id'))
 else: 
@@ -174,7 +175,7 @@ accounts_3.display()
 cust_time = get_time()
 customers_specs = (pd.read_feather(ref_path/'customers_cols.feather')
     .rename(columns=falcon_rename))
-customers_specs.loc[1, 'column'] = 'modelSTUB' if WORKFLOW_STUB else 'RBTRAN'
+customers_specs.loc[1, 'column'] = 'modelSTUB' if w_stub else 'RBTRAN'
 
 cis_longname = '~'.join(λ_name(rr) for _, rr in customers_specs.iterrows())
 cis_name = cis_longname if COL_DEBUG else 'cis-columna-fixed-width'
@@ -191,7 +192,7 @@ gender_df = spark.createDataFrame([
     Row(gender='H', gender_new='M'), 
     Row(gender='M', gender_new='F')])
 
-if MATCH_CLIENTS: 
+if hack_clients: 
     customers_0 = (EpicDF(spark, dbks_tables['gld_client_file'])
         .join(which_ids, on='sap_client_id', how='semi'))
 else: 
@@ -240,7 +241,7 @@ if haz_pagos:
     pymt_time = get_time()
     payments_specs = (pd.read_feather(ref_path/'payments_cols.feather')
             .rename(columns=falcon_rename))
-    payments_specs.loc[1, 'column'] = 'modelSTUB' if WORKFLOW_STUB else 'RBTRAN'
+    payments_specs.loc[1, 'column'] = 'modelSTUB' if w_stub else 'RBTRAN'
 
     one_column = '~'.join(map(λ_name, payments_specs.itertuples()))    # pylint: disable=invalid-name
 
