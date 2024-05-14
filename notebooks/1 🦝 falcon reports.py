@@ -62,25 +62,25 @@ date_str = lambda ss: dt.strptime(ss, '%Y-%m-%d').date()
 dates_by_env = {'qas': '2022-01-01', 'prd': '2023-05-01', None: '2023-01-01'}
 default_path = "../refs/upload-specs"
 
-dbutils.widgets.text('Con Pagos', 'false', "Ejecutar PIS-Payment Info. Sec.")
-dbutils.widgets.text('Workflow Stub', 'true', "Nombre de workflow como campo en reportes.")
-dbutils.widgets.text('Hack Clients', 'false', "Hack para empatar los clientes de CIS y AIS.")
-dbutils.widgets.text('Specs Local', 'true', "Archivo Feather p. Specs en Repo")
+dbutils.widgets.text('con_pagos', 'false', "Ejecutar PIS-Payment Info. Sec.")
+dbutils.widgets.text('workflow_stub', 'true', "Nombre de workflow como campo en reportes.")
+dbutils.widgets.text('hack_clients', 'false', "Hack para empatar los clientes de CIS y AIS.")
+dbutils.widgets.text('specs_local', 'true', "Archivo Feather p. Specs en Repo")
 
 
 # COMMAND ----------
 
-haz_pagos = pipe(w_get('Con Pagos'), 
+haz_pagos = pipe(w_get('con_pagos'), 
     ϱ('lower'), equal_to('true'))
 
-ref_path = pipe(w_get('Specs Local'), 
+ref_path = pipe(w_get('specs_local'), 
     replace_if('true', default_path), 
     Path)
 
-w_stub = pipe(w_get('Workflow Stub'), 
+w_stub = pipe(w_get('workflow_stub'), 
     ϱ('lower'), equal_to('true'))
 
-hack_clients = pipe(w_get('Hack Clients'),
+hack_clients = pipe(w_get('hack_clients'),
     ϱ('lower'), equal_to('true'))
 
 falcon_builder = EpicDataBuilder(typehandler=falcon_handler)
