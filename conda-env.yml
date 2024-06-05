@@ -1,0 +1,23 @@
+# No usaremos más el ambiente de Conda por proyecto.  
+# Si acaso virtualenv, o simplemente el archivo de requerimientos. 
+#
+# Los ambientes de Conda los gestionamos por tipo de repositorio 
+# en las computadoras de desarrollo. 
+
+channels: 
+  - defaults
+  - conda-forge
+
+dependencies: 
+  - python=3.10 
+  - toolz=0.12.0
+  - openpyxl=3.0.10 
+  - python-dotenv=0.21.0
+  - azure-identity=1.12.0
+  - azure-keyvault-secrets=4.6.0
+  - azure-storage-blob=12.9.0
+  - pyspark=3.3.2
+  - delta-spark=2.2.0
+  - ipython=8.10.0
+  - pip: 
+    - epic-py[pyspark] 
