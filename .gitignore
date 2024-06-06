@@ -2,3 +2,4 @@
 **__pycache__**
 .vscode
 user_databricks.yml
+**.DS_Store**
