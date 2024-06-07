@@ -1,8 +1,10 @@
 # pylint: disable=missing-module-docstring
 import os
 
-from epic_py.delta import TypeHandler
-from epic_py.platform import EpicIdentity
+USER_FILE = '../user_databricks.yml'
+EPIC_REF = 'gh-1.3'
+V_TYPING = '4.7.1'
+
 
 ## Infrastructure resources are defined here.
 SETUP_KEYS = {
@@ -14,7 +16,7 @@ SETUP_KEYS = {
             'tenant_id'      : 'aad-tenant-id'},                #'AAD_TENANT'},
         'databricks-scope': 'eh-core-banking'}, 
     'stg': {
-        'service-principal': { #                                # oauth-databricks-qas
+        'service-principal': { # oauth-databricks-qas
             'client_id'      : 'sp-core-events-client',         #'QAS_SP_CLIENT',
             'client_secret'  : 'sp-core-events-secret',         #'QAS_SP_SECRET', 
             'subscription_id': 'sp-core-events-suscription',    #'QAS_SP_SUBSTN', 
@@ -49,34 +51,12 @@ AZURE_RESOURCES = {
 }
 
 DBKS_MAPPING = { # Key from Excel Refs, Value on DBKS metastore.
-    'gld_client_file'         : 'din_clients.gld_client_file',  # 
-    'gld_cx_collections_loans': 'nayru_accounts.gld_cx_collections_loans',
-    'match_clients'           : 'prd.hyrule.viw_account_balance_mapper'}
+    'gld_client_file'         : 'din_clients.gld_client_file', 
+    'gld_cx_collections_loans': 'nayru_accounts.gld_cx_collections_loans'
+}
 
 
-## Project-wide technical variables.
 
 ENV = os.getenv('ENV_TYPE')
 SERVER = os.getenv('SERVER_TYPE')
 
-app_agent = EpicIdentity.create(server=SERVER, config=SETUP_KEYS[ENV])
-app_resourcer = app_agent.get_resourcer(AZURE_RESOURCES[ENV], check_all=False)
-
-dbks_tables = DBKS_MAPPING
-blob_path = (app_resourcer.get_resource_url('abfss', 'storage',
-        container='gold', blob_path=True))
-
-falcon_handler = TypeHandler({
-    'int' : {'NA_str': ''}, 
-    'long': {'NA_str': ''},
-    'dbl' : {'NA_str': ''}, 
-    'str' : {'NA_str': '', 'encoding': 'ascii'},
-    'date': {'NA_str': ' '*8, 'c_format': '%8s'},
-    'ts'  : {'NA_str': ' '*6, 'c_format': '%6s'}})
-
-falcon_rename = {
-    'FieldName' : 'name',
-    'tabla'     : 'table',
-    'columna'   : 'column',
-    'pytype'    : 'pytype',
-    'Size'      : 'len'}
