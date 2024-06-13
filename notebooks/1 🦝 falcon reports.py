@@ -19,6 +19,10 @@ deps.gh_epicpy('meetme-1',
 
 # COMMAND ----------
 
+import pytest
+
+# COMMAND ----------
+
 # pylint: disable=wrong-import-position
 # pylint: disable=wrong-import-order
 # pylint: disable=invalid-name
@@ -37,7 +41,7 @@ from epic_py.delta import EpicDF, EpicDataBuilder
 from epic_py.tools import dirfiles_df
 
 from src.head_foot import headfooters   # pylint: disable=ungrouped-imports
-from config import (app_agent, app_resourcer, blob_path,
+from src import (app_agent, app_resourcer, blob_path,
     dbks_tables, falcon_handler, falcon_rename)
 
 spark = SparkSession.builder.getOrCreate()
