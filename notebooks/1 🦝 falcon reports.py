@@ -13,13 +13,9 @@
 
 # COMMAND ----------
 
-from src import dependencies as deps
+import dependencies as deps
 deps.gh_epicpy('meetme-1', 
     tokenfile='../user_databricks.yml', typing=False, verbose=True)
-
-# COMMAND ----------
-
-import pytest
 
 # COMMAND ----------
 
@@ -49,6 +45,8 @@ dbutils = DBUtils(spark)
 
 # COMMAND ----------
 
+COL_DEBUG = False
+
 w_get = dbutils.widgets.get
 
 λ_name = lambda row: "{name}-{len}".format(**row)   # pylint: disable=consider-using-f-string
@@ -68,7 +66,6 @@ default_path = "../refs/upload-specs"
 
 dbutils.widgets.text('con_pagos', 'false', "Ejecutar PIS-Payment Info. Sec.")
 dbutils.widgets.text('workflow_stub', 'true', "Nombre de workflow como campo en reportes.")
-dbutils.widgets.text('hack_clients', 'false', "Hack para empatar los clientes de CIS y AIS.")
 dbutils.widgets.text('specs_local', 'true', "Archivo Feather p. Specs en Repo")
 
 
@@ -84,9 +81,6 @@ ref_path = pipe(w_get('specs_local'),
 w_stub = pipe(w_get('workflow_stub'), 
     ϱ('lower'), equal_to('true'))
 
-hack_clients = pipe(w_get('hack_clients'),
-    ϱ('lower'), equal_to('true'))
-
 falcon_builder = EpicDataBuilder(typehandler=falcon_handler)
 
 datalake = app_resourcer['storage']
@@ -96,28 +90,63 @@ app_resourcer.set_dbks_permissions(dlk_permissions)
 
 # COMMAND ----------
 
-COL_DEBUG = False
-
-if hack_clients: 
-    ids_c = (EpicDF(spark, dbks_tables['gld_client_file'])
-        .select('sap_client_id')
-        .distinct())
-    
-    # referencia de 19 dígitos:  F.concat(F.lit('765'), F.col('cms_account_id')), 
-    which_ids = (EpicDF(spark, dbks_tables['match_clients'])
-        .with_column_plus({
-            'BankAccountID': F.substring('core_account_id', 1, 11), 
-            'BorrowerID': F.col('client_id')})
-        .distinct()
-        .join(ids_c, how='inner', 
-            on=(ids_c['sap_client_id'] == F.col('BorrowerID'))))
-    which_ids.display()
-
+# MAGIC %md
+# MAGIC ## Cuentas
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Cuentas
+# MAGIC Se tienen que transformar los tipos de cuenta de acuerdo a los siguientes esquema: 
+# MAGIC
+# MAGIC ## Para Fiserv
+# MAGIC Los siguientes tipos de cuenta se definen en las especificaciones de Excel. 
+# MAGIC
+# MAGIC | Clave | Descripción                  |
+# MAGIC |-------|------------------------------|
+# MAGIC | D     | DDA/current account          
+# MAGIC | M   | Mortgage
+# MAGIC | H   | Home Equity Line of Credit (HELOC)
+# MAGIC | S   | Savings
+# MAGIC | C   | Credit card
+# MAGIC | LU  | Unsecured Loan
+# MAGIC | LA |  Automobile Loan
+# MAGIC | LS | Secured Loan (other than auto/mortgage)
+# MAGIC | UC | Unsecured Line of Credit
+# MAGIC | SC | Secured Line of Credit (other than HELOC)
+# MAGIC | MM | Money market
+# MAGIC | T  | Treasury
+# MAGIC | Z  | Certificate of deposit
+# MAGIC | B  | Brokerage
+# MAGIC | O  | Other Deposit Accounts (Annuity, Life Insurance, and so on)
+# MAGIC
+# MAGIC ## Accounts Tiene  
+# MAGIC Los siguientes tipos de productos se obtienen de la tabla de `current_account` como sigue: 
+# MAGIC ````
+# MAGIC the_products = (spark.read.table('current_account')
+# MAGIC     .)
+# MAGIC ```
+# MAGIC
+# MAGIC |ProductID  |	ProductDescription     | Extraer | Mapeo Fiserv
+# MAGIC |-----------|------------------------|---------|-------------
+# MAGIC |EPC_TA_N2	|Cuenta bineo ligera (N2)|  ✔️     | D
+# MAGIC |EPC_TA_N2	|Cuenta bineo ligera     | ✔️      | D
+# MAGIC |EPC_TA_MA1	|Cuenta de ahorro bineo  | ✔️      | D ... ¿S?
+# MAGIC |EPC_TA_MA1	|Cuenta bineo total      | ✔️      | D
+# MAGIC |EPC_OP_MAX	|EPIC Operaciones de negocios | ❌ |
+# MAGIC |EPC_OP_MAX |                      	 | ❌      | 
+# MAGIC |EPC_SP_MAX	|                        | ❌      |
+# MAGIC |EPC_SP_MAX	|EPIC CPD Cuenta transitoria | ❌  | 
+# MAGIC |POCKET1	  |Cuenta Pocket           |  ❌     |
+# MAGIC  
+
+# COMMAND ----------
+
+fiserv_transform = (lambda accs_df: accs_df
+    .withColumnRenamed('ID', 'BorrowerID')
+    .filter(F.col('ProductID').isin(['EPC_TA_N2', 'EPC_TA_MA1']))
+    .withColumn('Type', 
+        F.when(F.col('ProductID').isin(['EPC_TA_N2', 'EPC_TA_MA1']), 'D')
+            .otherwise(F.col('ProductID'))))
 
 # COMMAND ----------
 
@@ -131,21 +160,20 @@ ais_longname = '~'.join(λ_name(rr)
 ais_name = ais_longname if COL_DEBUG else 'ais-columna-fixed-width'
 
 accounts_extract = falcon_builder.get_extract(accounts_specs, 'delta')
+# Qué columna viene de qué tabla, o qué valor. 
+
 accounts_loader = falcon_builder.get_loader(accounts_specs, 'fixed-width')
+# Convertir a ancho fijo de acuerdo al tipo de columna. 
+
 accounts_onecol = (F.concat(*accounts_specs['name'].values)
     .alias(ais_name))
 
-accounts_tbl = (dbks_tables['gld_cx_collections_loans'] 
-    if not hack_clients else 'prd.hyrule.view_account_balance_mapper')
+accounts_tbl = app_resourcer.get_resource_url('abfss', 'storage',
+    container='bronze', blob_path=dbks_tables['accounts'])  # Tiene que ser Current Account. 
 
-if hack_clients: 
-    accounts_0 = (EpicDF(spark, accounts_tbl)
-        .join(which_ids, how='inner', on='client_id'))
-else: 
-    accounts_0 = EpicDF(spark, accounts_tbl)
+accounts_0 = fiserv_transform(EpicDF(spark, accounts_tbl))
 
 accounts_1 = (accounts_0
-    .withColumn('type', F.lit('D'))
     .select_plus(accounts_extract['gld_cx_collections_loans'])
     .with_column_plus(accounts_extract['_val'])
     .with_column_plus(accounts_extract['None']))
@@ -165,14 +193,53 @@ accounts_3.save_as_file(
 
 # COMMAND ----------
 
-print(f"accounts/{acct_time}.csv")
-accounts_3.display()
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC ## Clientes
 # MAGIC
+# MAGIC La columna original para tomar la información del cliente era `gld_client_file`.  
+# MAGIC Esta fue eliminada sin aviso y por eso empezó a fallar todo.  
+# MAGIC La tabla equivalente es `star_schema.dim_client`.  
+# MAGIC Aunque se supone que tiene más estructura que la anterior, la realidad es que no está bien hecha.  
+# MAGIC
+# MAGIC El _hack_ se compone de lo siguiente:  
+# MAGIC * Mapeo de columnas `prep_columns`.  
+# MAGIC * Un increíble _pivoteo_ de columnas de `kyc`.  
+# MAGIC * Un filtrado de datos repetidos debido al desmadre que se hizo con `kyc`.  
+
+# COMMAND ----------
+
+
+mod_columns = {
+    "user_first_name": F.col("first_name"),
+    "user_first_last_name": F.col("last_name"), 
+    "user_second_last_name": F.col("last_name2"), 
+    "sap_client_id": F.col("client_id"),
+    "user_phone_number": F.col("phone_number"),
+    "user_email": F.col("current_email_address"),
+    "fad_birth_date": F.col("birth_date"),
+    "fad_birth_cntry": F.col("birth_place_name"), 
+    "user_neighborhood": F.col("addr_district"), 
+    "fad_gender": F.col("person_gender"), 
+    "fad_state": F.col("region"), 
+    'user_rfc': F.col("person_rfc"), 
+    "fad_addr_1": F.concat_ws(" ", "addr_street", "addr_external_number")}
+
+customers_kyc = (EpicDF(spark, "qas.star_schema.dim_client")
+    .select('client_id', 'kyc_id', 'kyc_answer')
+    .filter(F.col('kyc_id').isin(['OCCUPATION', 'SOURCEOFINCOME']))
+    .groupBy('client_id').pivot('kyc_id').agg({'kyc_answer': 'first'})
+    .withColumnsRenamed({
+        'client_id': 'sap_client_id', 
+        'OCCUPATION': 'kyc_occupation', 
+        'SOURCEOFINCOME': 'kyc_src_income'}))
+
+customers_fix = (EpicDF(spark, "qas.star_schema.dim_client")
+    .select_plus(mod_columns)
+    .distinct()
+    .join(customers_kyc, 'sap_client_id', how='left'))
+
+customers_fix.display()
+
 
 # COMMAND ----------
 
@@ -192,21 +259,16 @@ customers_loader  = falcon_builder.get_loader(customers_specs, 'fixed-width')
 customers_onecol  = (F.concat(*customers_specs['name'].values)
     .alias(cis_name))
 
-gender_df = spark.createDataFrame([
-    Row(gender='H', gender_new='M'), 
-    Row(gender='M', gender_new='F')])
+gender_df = EpicDF(spark, pd.DataFrame(
+        columns=['gender', 'gender_new'], 
+        data=[['H', 'M'], ['M', 'F']]))
 
-if hack_clients: 
-    customers_0 = (EpicDF(spark, dbks_tables['gld_client_file'])
-        .join(which_ids, on='sap_client_id', how='semi'))
-else: 
-    customers_0 = EpicDF(spark, dbks_tables['gld_client_file'])
+# customers_leg = EpicDF(spark, dbks_tables['gld_client_file'])
+# customers_legacy = (customers_leg
+#     .drop('bureau_req_ts', *filter(ϱ('startswith', 'ben_'), customers_leg.columns))
+#     .distinct())
 
-customers_1= EpicDF(customers_0
-    .drop('bureau_req_ts', *filter(ϱ('startswith', 'ben_'), customers_0.columns))
-    .distinct())
-
-customers_2 = EpicDF(customers_1
+customers_2 = (EpicDF(customers_fix)
     .with_column_plus(customers_extract['gld_client_file'])
     .with_column_plus(customers_extract['_val'])
     .with_column_plus(customers_extract['None'])
@@ -228,11 +290,6 @@ customers_4.save_as_file(
     f"{blob_path}/reports/customers/{cust_time}.csv",
     f"{blob_path}/reports/customers/tmp_delta",
     header=False, ignoreTrailingWhiteSpace=False, ignoreLeadingWhiteSpace=False)
-
-# COMMAND ----------
-
-print(f"customers/{cust_time}.csv")
-customers_3.display()
 
 # COMMAND ----------
 
@@ -283,6 +340,7 @@ if haz_pagos:
 print("Filas AIS-post escritura")
 post_ais = (spark.read.format('csv')
     .load(f"{blob_path}/reports/accounts/{cust_time}.csv"))
+    
 (post_ais
     .select(F.length('_c0').alias('ais_longitud'))
     .groupBy('ais_longitud')

@@ -1,12 +1,13 @@
 # SRC asume que EPICPY está instalado.
 
 import config as c
-from epicpy.platform import EpicIdentity
+from epic_py.platform import EpicIdentity
+from epic_py.delta import TypeHandler
 
 app_agent = EpicIdentity.create(server=c.SERVER, config=c.SETUP_KEYS[c.ENV])
-app_resourcer = app_agent.get_resourcer(AZURE_RESOURCES[ENV], check_all=False)
+app_resourcer = app_agent.get_resourcer(c.AZURE_RESOURCES[c.ENV], check_all=False)
 
-dbks_tables = DBKS_MAPPING
+dbks_tables = c.DBKS_MAPPING
 blob_path = (app_resourcer.get_resource_url('abfss', 'storage',
         container='gold', blob_path=True))
 

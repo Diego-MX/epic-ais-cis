@@ -12,14 +12,14 @@
 import pytest
 from pyspark.sql import SparkSession
 
-import config
+import config as c
+
 
 spark = SparkSession.builder.getOrCreate()
 
-
 # Let the Tests Begiiiin!!! 
 def test_databricks_tables_are_accessible(): 
-    for tbl_key, tbl_name in config.DBKS_MAPPING.items(): 
+    for tbl_key, tbl_name in c.DBKS_MAPPING.items(): 
         assert spark.catalog.tableExists(tbl_name),\
             f"Tabla para {tbl_key} no existe en catálogo."
     return        

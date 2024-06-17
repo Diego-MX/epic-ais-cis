@@ -28,35 +28,47 @@ SETUP_KEYS = {
             'client_secret'  : 'sp-collections-secret', #          
             'subscription_id': 'sp-collections-subscription', # 
             'tenant_id'      : 'aad-tenant-id'}, 
-        'databricks-scope': 'cx-collections'},  #   eh-core-banking
+        'databricks-scope': 'cx-collections'},      #   eh-core-banking
 }
 
 AZURE_RESOURCES = {
     'qas': {
         'keyvault' : 'kv-cx-data-qas',
         'storage'  : 'stlakehyliaqas', 
-        'storage_path': "ops/fraud-prevention", 
-        'blob_path': "ops/fraud-prevention"}, 
+        # 'storage_path': "ops/fraud-prevention", 
+        # 'blob_path': "ops/fraud-prevention", 
+        'storage_paths': {
+            'fraud': "ops/fraud-prevention", 
+            'core-banking': "ops/core-banking-x/current-account", 
+        'metastore': {  
+            'server': 'sqlserver-lakehylia-data-qas', 
+            'database': 'lakehylia_metastore_qas', 
+            'user': 'sqlAdministratorLoginUserMetastore', 
+            'password': 'sqlAdministratorLoginPwdMetastore'}
+        }}, 
     'stg': {
         'keyvault' : 'kv-cx-data-stg',
         'storage'  : 'stlakehyliastg', 
-        'storage_path': "ops/fraud-prevention",
-        'blob_path': "ops/fraud-prevention", 
-        'storage_paths': ["ops/fraud-prevention", "ops/"]}, 
+        'storage_paths': {
+            'fraud': "ops/fraud-prevention", 
+            'core-banking': "ops/core-banking-x/current-account"
+        }},  
     'prd': {
         'keyvault' : 'kv-cx-data-prd',
         'storage'  : 'stlakehyliaprd',
-        'storage_path': "ops/fraud-prevention", 
-        'blob_path': "ops/fraud-prevention"}
-}
+        'storage_paths': {
+            'fraud': "ops/fraud-prevention", 
+            'core-banking': "ops/core-banking-x/current-account"
+} } }
+
 
 DBKS_MAPPING = { # Key from Excel Refs, Value on DBKS metastore.
-    'gld_client_file'         : 'din_clients.gld_client_file', 
-    'gld_cx_collections_loans': 'nayru_accounts.gld_cx_collections_loans'
+    'clients'  : 'star_schema.dim_client', 
+    'accounts' : 'ops/core-banking-x/current-account/data'
 }
-
-
 
 ENV = os.getenv('ENV_TYPE')
 SERVER = os.getenv('SERVER_TYPE')
+
+
 
