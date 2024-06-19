@@ -35,8 +35,6 @@ AZURE_RESOURCES = {
     'qas': {
         'keyvault' : 'kv-cx-data-qas',
         'storage'  : 'stlakehyliaqas', 
-        # 'storage_path': "ops/fraud-prevention", 
-        # 'blob_path': "ops/fraud-prevention", 
         'storage_paths': {
             'fraud': "ops/fraud-prevention", 
             'core-banking': "ops/core-banking-x/current-account", 
@@ -61,14 +59,11 @@ AZURE_RESOURCES = {
             'core-banking': "ops/core-banking-x/current-account"
 } } }
 
-
 DBKS_MAPPING = { # Key from Excel Refs, Value on DBKS metastore.
     'clients'  : 'star_schema.dim_client', 
-    'accounts' : 'ops/core-banking-x/current-account/data'
+    'accounts' : 'star_schema.current_account_x'
 }
 
 ENV = os.getenv('ENV_TYPE')
 SERVER = os.getenv('SERVER_TYPE')
-
-
 

@@ -8,8 +8,9 @@ app_agent = EpicIdentity.create(server=c.SERVER, config=c.SETUP_KEYS[c.ENV])
 app_resourcer = app_agent.get_resourcer(c.AZURE_RESOURCES[c.ENV], check_all=False)
 
 dbks_tables = c.DBKS_MAPPING
-blob_path = (app_resourcer.get_resource_url('abfss', 'storage',
-        container='gold', blob_path=True))
+blob_path = app_resourcer['storage-paths']['fraud']
+blob_abfss = (app_resourcer.get_resource_url('abfss', 'storage',
+        container='gold', blob_path=pre_path))
 
 falcon_handler = TypeHandler({
     'int' : {'NA_str': ''}, 

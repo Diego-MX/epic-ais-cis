@@ -14,7 +14,7 @@
 # COMMAND ----------
 
 import dependencies as deps
-deps.gh_epicpy('meetme-1', 
+deps.gh_epicpy('meetme-1',  
     tokenfile='../user_databricks.yml', typing=False, verbose=True)
 
 # COMMAND ----------
@@ -23,6 +23,7 @@ deps.gh_epicpy('meetme-1',
 # pylint: disable=wrong-import-order
 # pylint: disable=invalid-name
 from datetime import datetime as dt
+from io import BytesIO
 from operator import methodcaller as ϱ, eq
 from os import getenv
 from pathlib import Path
@@ -49,12 +50,18 @@ COL_DEBUG = False
 
 w_get = dbutils.widgets.get
 
-λ_name = lambda row: "{name}-{len}".format(**row)   # pylint: disable=consider-using-f-string
-
-equal_to = curry(eq)
+row_name = lambda row: "{name}-{len}".format(**row)   # pylint: disable=consider-using-f-string
 
 def replace_if(eq_val, rep_val): 
+    # xx -> rep_val if xx == eq_val else xx 
+    # xx -> if_else(rep_val, equal_to(eq_val)(xx), xx)
+    # xx -> if_else(constant(rep_val)(xx), equal_to(eq_val)(xx), identity(xx))
+    # xx -> if_else(*juxt(constant(rep_val), equal_to(eq_val), identity)(xx))
+    # compose(packed(if_else), juxt(constant(rep_val), equal_to(eq_val), identity))
+    # Más complicado 😒
     return (lambda xx: rep_val if xx == eq_val else xx)
+
+equal_to = curry(eq)
 
 def get_time(a_tz="America/Mexico_City", time_fmt="%Y-%m-%d"):
     return dt.now(tz=tz(a_tz)).strftime(format=time_fmt)
@@ -71,15 +78,13 @@ dbutils.widgets.text('specs_local', 'true', "Archivo Feather p. Specs en Repo")
 
 # COMMAND ----------
 
-haz_pagos = pipe(w_get('con_pagos'), 
-    ϱ('lower'), equal_to('true'))
+haz_pagos = (w_get('con_pagos').lower() == 'true')
 
-ref_path = pipe(w_get('specs_local'), 
-    replace_if('true', default_path), 
-    Path)
+specs_local = (w_get('specs_local') == 'true')
+at_specs = default_path if specs_local else f"{blob_path}/specs"
+gold_container = app_resourcer.get_storage_client(None, 'gold')
 
-w_stub = pipe(w_get('workflow_stub'), 
-    ϱ('lower'), equal_to('true'))
+w_stub = (w_get('workflow_stub').lower() == 'true')
 
 falcon_builder = EpicDataBuilder(typehandler=falcon_handler)
 
@@ -87,6 +92,42 @@ datalake = app_resourcer['storage']
 dlk_permissions = app_agent.prep_dbks_permissions(datalake, 'gen2')
 app_resourcer.set_dbks_permissions(dlk_permissions)
 
+
+# COMMAND ----------
+
+(self, url_type, resource, container, blob_path) = app_resourcer, 'abfss', 'storage', 'gold', True
+if  url_type is None:
+    raise Exception("URL_TYPE is required")
+
+elif url_type == 'abfss':
+    account = self.config.get(resource, resource)
+    container = container or '{container}'
+    path_arg = blob_path or False  # logical or string. 
+    
+    if isinstance(path_arg, (str, Path)): 
+        has_path = True
+        blob_path = path_arg
+    elif isinstance(path_arg, bool): 
+        has_path = path_arg 
+        blob_path = self.config.get('blob_path', None)
+    
+    the_path = f"abfss://{container}@{account}.dfs.core.windows.net"
+    if has_path: 
+        the_path += f"/{blob_path}"
+
+    print(f"""
+Path: {the_path}
+Account: {account}
+Container: {container}
+Blob_path: {blob_path}
+""")
+self.config
+
+# COMMAND ----------
+
+a_dir = "abfss://gold@stlakehyliaqas.dfs.core.windows.net"
+#dirfiles_df(a_dir)
+dbutils.fs.rm(f"{a_dir}/abfss:/", recurse=True)
 
 # COMMAND ----------
 
@@ -121,9 +162,10 @@ app_resourcer.set_dbks_permissions(dlk_permissions)
 # MAGIC
 # MAGIC ## Accounts Tiene  
 # MAGIC Los siguientes tipos de productos se obtienen de la tabla de `current_account` como sigue: 
-# MAGIC ````
+# MAGIC ```python
 # MAGIC the_products = (spark.read.table('current_account')
-# MAGIC     .)
+# MAGIC     .select('ProductID', 'ProductDesc')
+# MAGIC     .distinct().display())
 # MAGIC ```
 # MAGIC
 # MAGIC |ProductID  |	ProductDescription     | Extraer | Mapeo Fiserv
@@ -141,21 +183,36 @@ app_resourcer.set_dbks_permissions(dlk_permissions)
 
 # COMMAND ----------
 
+
+es_ligera = F.col('ProductID').isin(['EPC_TA_N2', 'EPC_TA_MA1'])
+
 fiserv_transform = (lambda accs_df: accs_df
     .withColumnRenamed('ID', 'BorrowerID')
-    .filter(F.col('ProductID').isin(['EPC_TA_N2', 'EPC_TA_MA1']))
-    .withColumn('Type', 
-        F.when(F.col('ProductID').isin(['EPC_TA_N2', 'EPC_TA_MA1']), 'D')
-            .otherwise(F.col('ProductID'))))
+    .filter(es_ligera)
+    .withColumn('Type', F.when(es_ligera, 'D').otherwise(F.col('ProductID'))))
+
+# COMMAND ----------
+
+
 
 # COMMAND ----------
 
 acct_time = get_time()
-accounts_specs = (pd.read_feather(ref_path/'accounts_cols.feather')
+
+if specs_local: 
+    accounts_specs = (pd.read_feather(at_specs/'accounts_cols.feather')
         .rename(columns=falcon_rename))
+else: 
+    b_blob = gold_container.get_blob_client(f"{at_specs}/accounts_specs_latest.feather")
+    b_data = b_blob.download_blob()
+    b_strm = BytesIO()
+    b_data.read_into(b_strm)
+    b_strm.seek(0)
+    accounts_specs = pd.read_feather(b_strm)
+
 accounts_specs.loc[1, 'column'] = 'modelSTUB' if w_stub else 'RBTRAN'
 
-ais_longname = '~'.join(λ_name(rr) 
+ais_longname = '~'.join(row_name(rr) 
         for _, rr in accounts_specs.iterrows())
 ais_name = ais_longname if COL_DEBUG else 'ais-columna-fixed-width'
 
@@ -248,10 +305,10 @@ customers_specs = (pd.read_feather(ref_path/'customers_cols.feather')
     .rename(columns=falcon_rename))
 customers_specs.loc[1, 'column'] = 'modelSTUB' if w_stub else 'RBTRAN'
 
-cis_longname = '~'.join(λ_name(rr) for _, rr in customers_specs.iterrows())
+cis_longname = '~'.join(row_name(rr) for _, rr in customers_specs.iterrows())
 cis_name = cis_longname if COL_DEBUG else 'cis-columna-fixed-width'
 
-name_onecol = '~'.join(λ_name(rr)       # pylint: disable=invalid-name
+name_onecol = '~'.join(row_name(rr)       # pylint: disable=invalid-name
     for _, rr in customers_specs.iterrows())
 
 customers_extract = falcon_builder.get_extract(customers_specs, 'delta')
@@ -304,7 +361,7 @@ if haz_pagos:
             .rename(columns=falcon_rename))
     payments_specs.loc[1, 'column'] = 'modelSTUB' if w_stub else 'RBTRAN'
 
-    one_column = '~'.join(map(λ_name, payments_specs.itertuples()))    # pylint: disable=invalid-name
+    one_column = '~'.join(map(row_name, payments_specs.itertuples()))    # pylint: disable=invalid-name
 
     payments_extract = falcon_builder.get_extract(payments_specs, 'delta')
     payments_loader = falcon_builder.get_loader(payments_specs, 'fixed-width')
