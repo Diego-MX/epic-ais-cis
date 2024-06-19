@@ -4,13 +4,13 @@ from epic_py.platform import EpicIdentity
 import config as cfg
 
 app_agent = EpicIdentity.create(server=cfg.SERVER, config=cfg.SETUP_KEYS[cfg.ENV])
-app_resourcer = app_agent.get_resourcer(cfg.AZURE_RESOURCES[cfg.ENV], check_all=False)
+app_resourcer = app_agent.get_resourcer(cfg.AZURE_RESOURCES[cfg.ENV])
 
 dbks_tables = cfg.DBKS_MAPPING
 
-blob_path = app_resourcer['storage-path']['fraud']
-blob_abfss = (app_resourcer.get_resource_url('abfss', 'storage',
-        container='gold', blob_path=pre_path))
+app_path = app_resourcer['storage-paths']['fraud']
+app_abfss = (app_resourcer.get_resource_url('abfss', 'storage',
+        container='gold', blob_path=blob_path))
 
 
 falcon_types = {

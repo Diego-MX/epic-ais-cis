@@ -41,7 +41,7 @@ AZURE_RESOURCES = {
     'qas': {
         'keyvault' : 'kv-cx-data-qas',
         'storage'  : 'stlakehyliaqas', 
-        'storage_paths': {
+        'storage-paths': {
             'fraud': "ops/fraud-prevention", 
             'core-banking': "ops/core-banking-x/current-account", 
         'metastore': {  
@@ -53,14 +53,14 @@ AZURE_RESOURCES = {
     'stg': {
         'keyvault' : 'kv-cx-data-stg',
         'storage'  : 'stlakehyliastg', 
-        'storage_paths': {
+        'storage-paths': {
             'fraud': "ops/fraud-prevention", 
             'core-banking': "ops/core-banking-x/current-account"
         }},  
     'prd': {
         'keyvault' : 'kv-cx-data-prd',
         'storage'  : 'stlakehyliaprd',
-        'storage_paths': {
+        'storage-paths': {
             'fraud': "ops/fraud-prevention", 
             'core-banking': "ops/core-banking-x/current-account"
 } } }
@@ -70,9 +70,6 @@ DBKS_MAPPING = { # Key from Excel Refs, Value on DBKS metastore.
     'accounts': 'star_schema.current_account_x'}
 
 
-    'clients'  : 'star_schema.dim_client', 
-    'accounts' : 'star_schema.current_account_x'
-}
 
 ENV = os.getenv('ENV_TYPE')
 SERVER = os.getenv('SERVER_TYPE')
