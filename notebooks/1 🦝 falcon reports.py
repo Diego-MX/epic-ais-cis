@@ -14,46 +14,54 @@
 # COMMAND ----------
 
 import dependencies as deps
-deps.gh_epicpy('meetme-1', 
+deps.gh_epicpy('meetme-1',  
     tokenfile='../user_databricks.yml', typing=False, verbose=True)
 
 # COMMAND ----------
 
 # pylint: disable=wrong-import-position
+# pylint: disable=wrong-import-order
 # pylint: disable=invalid-name
 from datetime import datetime as dt
+from io import BytesIO
 from operator import methodcaller as ϱ, eq
+from os import getenv
 from pathlib import Path
 from pytz import timezone as tz
 
 import pandas as pd
-from pyspark.sql import functions as F, Row, SparkSession
-from pyspark.dbutils import DBUtils    
+from pyspark.sql import functions as F, Row, SparkSession   # pylint: disable=import-error
+from pyspark.dbutils import DBUtils     # pylint: disable=no-name-in-module,import-error
 from toolz import curry, pipe
 
-from epic_py.delta import EpicDF, EpicDataBuilder, TypeHandler
+from epic_py.delta import EpicDF, EpicDataBuilder
 from epic_py.tools import dirfiles_df
 
 from src.head_foot import headfooters   # pylint: disable=ungrouped-imports
 from src import (app_agent, app_resourcer, blob_path,
-    dbks_tables, falcon_types, falcon_rename)
+    dbks_tables, falcon_handler, falcon_rename)
 
 spark = SparkSession.builder.getOrCreate()
 dbutils = DBUtils(spark)
 
-falcon_handler = TypeHandler(falcon_types)
-
-
 # COMMAND ----------
+
+COL_DEBUG = False
 
 w_get = dbutils.widgets.get
 
-λ_name = lambda row: "{name}-{len}".format(**row)   # pylint: disable=consider-using-f-string
-
-equal_to = curry(eq)
+row_name = lambda row: "{name}-{len}".format(**row)   # pylint: disable=consider-using-f-string
 
 def replace_if(eq_val, rep_val): 
+    # xx -> rep_val if xx == eq_val else xx 
+    # xx -> if_else(rep_val, equal_to(eq_val)(xx), xx)
+    # xx -> if_else(constant(rep_val)(xx), equal_to(eq_val)(xx), identity(xx))
+    # xx -> if_else(*juxt(constant(rep_val), equal_to(eq_val), identity)(xx))
+    # compose(packed(if_else), juxt(constant(rep_val), equal_to(eq_val), identity))
+    # Más complicado 😒
     return (lambda xx: rep_val if xx == eq_val else xx)
+
+equal_to = curry(eq)
 
 def get_time(a_tz="America/Mexico_City", time_fmt="%Y-%m-%d"):
     return dt.now(tz=tz(a_tz)).strftime(format=time_fmt)
@@ -70,15 +78,13 @@ dbutils.widgets.text('specs_local', 'true', "Archivo Feather p. Specs en Repo")
 
 # COMMAND ----------
 
-haz_pagos = pipe(w_get('con_pagos'), 
-    ϱ('lower'), equal_to('true'))
+haz_pagos = (w_get('con_pagos').lower() == 'true')
 
-ref_path = pipe(w_get('specs_local'), 
-    replace_if('true', default_path), 
-    Path)
+specs_local = (w_get('specs_local') == 'true')
+at_specs = default_path if specs_local else f"{blob_path}/specs"
+gold_container = app_resourcer.get_storage_client(None, 'gold')
 
-w_stub = pipe(w_get('workflow_stub'), 
-    ϱ('lower'), equal_to('true'))
+w_stub = (w_get('workflow_stub').lower() == 'true')
 
 falcon_builder = EpicDataBuilder(typehandler=falcon_handler)
 
@@ -89,7 +95,39 @@ app_resourcer.set_dbks_permissions(dlk_permissions)
 
 # COMMAND ----------
 
-COL_DEBUG = False
+(self, url_type, resource, container, blob_path) = app_resourcer, 'abfss', 'storage', 'gold', True
+if  url_type is None:
+    raise Exception("URL_TYPE is required")
+
+elif url_type == 'abfss':
+    account = self.config.get(resource, resource)
+    container = container or '{container}'
+    path_arg = blob_path or False  # logical or string. 
+    
+    if isinstance(path_arg, (str, Path)): 
+        has_path = True
+        blob_path = path_arg
+    elif isinstance(path_arg, bool): 
+        has_path = path_arg 
+        blob_path = self.config.get('blob_path', None)
+    
+    the_path = f"abfss://{container}@{account}.dfs.core.windows.net"
+    if has_path: 
+        the_path += f"/{blob_path}"
+
+    print(f"""
+Path: {the_path}
+Account: {account}
+Container: {container}
+Blob_path: {blob_path}
+""")
+self.config
+
+# COMMAND ----------
+
+a_dir = "abfss://gold@stlakehyliaqas.dfs.core.windows.net"
+#dirfiles_df(a_dir)
+dbutils.fs.rm(f"{a_dir}/abfss:/", recurse=True)
 
 # COMMAND ----------
 
@@ -98,26 +136,101 @@ COL_DEBUG = False
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC Se tienen que transformar los tipos de cuenta de acuerdo a los siguientes esquema: 
+# MAGIC
+# MAGIC ## Para Fiserv
+# MAGIC Los siguientes tipos de cuenta se definen en las especificaciones de Excel. 
+# MAGIC
+# MAGIC | Clave | Descripción                  |
+# MAGIC |-------|------------------------------|
+# MAGIC | D     | DDA/current account          
+# MAGIC | M   | Mortgage
+# MAGIC | H   | Home Equity Line of Credit (HELOC)
+# MAGIC | S   | Savings
+# MAGIC | C   | Credit card
+# MAGIC | LU  | Unsecured Loan
+# MAGIC | LA |  Automobile Loan
+# MAGIC | LS | Secured Loan (other than auto/mortgage)
+# MAGIC | UC | Unsecured Line of Credit
+# MAGIC | SC | Secured Line of Credit (other than HELOC)
+# MAGIC | MM | Money market
+# MAGIC | T  | Treasury
+# MAGIC | Z  | Certificate of deposit
+# MAGIC | B  | Brokerage
+# MAGIC | O  | Other Deposit Accounts (Annuity, Life Insurance, and so on)
+# MAGIC
+# MAGIC ## Accounts Tiene  
+# MAGIC Los siguientes tipos de productos se obtienen de la tabla de `current_account` como sigue: 
+# MAGIC ```python
+# MAGIC the_products = (spark.read.table('current_account')
+# MAGIC     .select('ProductID', 'ProductDesc')
+# MAGIC     .distinct().display())
+# MAGIC ```
+# MAGIC
+# MAGIC |ProductID  |	ProductDescription     | Extraer | Mapeo Fiserv
+# MAGIC |-----------|------------------------|---------|-------------
+# MAGIC |EPC_TA_N2	|Cuenta bineo ligera (N2)|  ✔️     | D
+# MAGIC |EPC_TA_N2	|Cuenta bineo ligera     | ✔️      | D
+# MAGIC |EPC_TA_MA1	|Cuenta de ahorro bineo  | ✔️      | D ... ¿S?
+# MAGIC |EPC_TA_MA1	|Cuenta bineo total      | ✔️      | D
+# MAGIC |EPC_OP_MAX	|EPIC Operaciones de negocios | ❌ |
+# MAGIC |EPC_OP_MAX |                      	 | ❌      | 
+# MAGIC |EPC_SP_MAX	|                        | ❌      |
+# MAGIC |EPC_SP_MAX	|EPIC CPD Cuenta transitoria | ❌  | 
+# MAGIC |POCKET1	  |Cuenta Pocket           |  ❌     |
+# MAGIC  
+
+# COMMAND ----------
+
+
+es_ligera = F.col('ProductID').isin(['EPC_TA_N2', 'EPC_TA_MA1'])
+
+fiserv_transform = (lambda accs_df: accs_df
+    .withColumnRenamed('ID', 'BorrowerID')
+    .filter(es_ligera)
+    .withColumn('Type', F.when(es_ligera, 'D').otherwise(F.col('ProductID'))))
+
+# COMMAND ----------
+
+
+
+# COMMAND ----------
+
 acct_time = get_time()
-accounts_specs = (pd.read_feather(ref_path/'accounts_cols.feather')
+
+if specs_local: 
+    accounts_specs = (pd.read_feather(at_specs/'accounts_cols.feather')
         .rename(columns=falcon_rename))
+else: 
+    b_blob = gold_container.get_blob_client(f"{at_specs}/accounts_specs_latest.feather")
+    b_data = b_blob.download_blob()
+    b_strm = BytesIO()
+    b_data.read_into(b_strm)
+    b_strm.seek(0)
+    accounts_specs = pd.read_feather(b_strm)
+
 accounts_specs.loc[1, 'column'] = 'modelSTUB' if w_stub else 'RBTRAN'
 
-ais_longname = '~'.join(λ_name(rr) 
+ais_longname = '~'.join(row_name(rr) 
         for _, rr in accounts_specs.iterrows())
 ais_name = ais_longname if COL_DEBUG else 'ais-columna-fixed-width'
 
 accounts_extract = falcon_builder.get_extract(accounts_specs, 'delta')
+# Qué columna viene de qué tabla, o qué valor. 
+
 accounts_loader = falcon_builder.get_loader(accounts_specs, 'fixed-width')
+# Convertir a ancho fijo de acuerdo al tipo de columna. 
+
 accounts_onecol = (F.concat(*accounts_specs['name'].values)
     .alias(ais_name))
 
-accounts_tbl = dbks_tables['gld_cx_collections_loans'] 
+accounts_tbl = app_resourcer.get_resource_url('abfss', 'storage',
+    container='bronze', blob_path=dbks_tables['accounts'])  # Tiene que ser Current Account. 
 
-accounts_0 = EpicDF(spark, accounts_tbl)
+accounts_0 = fiserv_transform(EpicDF(spark, accounts_tbl))
 
 accounts_1 = (accounts_0
-    .withColumn('type', F.lit('D'))
     .select_plus(accounts_extract['gld_cx_collections_loans'])
     .with_column_plus(accounts_extract['_val'])
     .with_column_plus(accounts_extract['None']))
@@ -137,14 +250,53 @@ accounts_3.save_as_file(
 
 # COMMAND ----------
 
-print(f"accounts/{acct_time}.csv")
-accounts_3.display()
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC ## Clientes
 # MAGIC
+# MAGIC La columna original para tomar la información del cliente era `gld_client_file`.  
+# MAGIC Esta fue eliminada sin aviso y por eso empezó a fallar todo.  
+# MAGIC La tabla equivalente es `star_schema.dim_client`.  
+# MAGIC Aunque se supone que tiene más estructura que la anterior, la realidad es que no está bien hecha.  
+# MAGIC
+# MAGIC El _hack_ se compone de lo siguiente:  
+# MAGIC * Mapeo de columnas `prep_columns`.  
+# MAGIC * Un increíble _pivoteo_ de columnas de `kyc`.  
+# MAGIC * Un filtrado de datos repetidos debido al desmadre que se hizo con `kyc`.  
+
+# COMMAND ----------
+
+
+mod_columns = {
+    "user_first_name": F.col("first_name"),
+    "user_first_last_name": F.col("last_name"), 
+    "user_second_last_name": F.col("last_name2"), 
+    "sap_client_id": F.col("client_id"),
+    "user_phone_number": F.col("phone_number"),
+    "user_email": F.col("current_email_address"),
+    "fad_birth_date": F.col("birth_date"),
+    "fad_birth_cntry": F.col("birth_place_name"), 
+    "user_neighborhood": F.col("addr_district"), 
+    "fad_gender": F.col("person_gender"), 
+    "fad_state": F.col("region"), 
+    'user_rfc': F.col("person_rfc"), 
+    "fad_addr_1": F.concat_ws(" ", "addr_street", "addr_external_number")}
+
+customers_kyc = (EpicDF(spark, "qas.star_schema.dim_client")
+    .select('client_id', 'kyc_id', 'kyc_answer')
+    .filter(F.col('kyc_id').isin(['OCCUPATION', 'SOURCEOFINCOME']))
+    .groupBy('client_id').pivot('kyc_id').agg({'kyc_answer': 'first'})
+    .withColumnsRenamed({
+        'client_id': 'sap_client_id', 
+        'OCCUPATION': 'kyc_occupation', 
+        'SOURCEOFINCOME': 'kyc_src_income'}))
+
+customers_fix = (EpicDF(spark, "qas.star_schema.dim_client")
+    .select_plus(mod_columns)
+    .distinct()
+    .join(customers_kyc, 'sap_client_id', how='left'))
+
+customers_fix.display()
+
 
 # COMMAND ----------
 
@@ -153,10 +305,10 @@ customers_specs = (pd.read_feather(ref_path/'customers_cols.feather')
     .rename(columns=falcon_rename))
 customers_specs.loc[1, 'column'] = 'modelSTUB' if w_stub else 'RBTRAN'
 
-cis_longname = '~'.join(λ_name(rr) for _, rr in customers_specs.iterrows())
+cis_longname = '~'.join(row_name(rr) for _, rr in customers_specs.iterrows())
 cis_name = cis_longname if COL_DEBUG else 'cis-columna-fixed-width'
 
-name_onecol = '~'.join(λ_name(rr)       # pylint: disable=invalid-name
+name_onecol = '~'.join(row_name(rr)       # pylint: disable=invalid-name
     for _, rr in customers_specs.iterrows())
 
 customers_extract = falcon_builder.get_extract(customers_specs, 'delta')
@@ -164,17 +316,16 @@ customers_loader  = falcon_builder.get_loader(customers_specs, 'fixed-width')
 customers_onecol  = (F.concat(*customers_specs['name'].values)
     .alias(cis_name))
 
-gender_df = spark.createDataFrame([
-    Row(gender='H', gender_new='M'), 
-    Row(gender='M', gender_new='F')])
+gender_df = EpicDF(spark, pd.DataFrame(
+        columns=['gender', 'gender_new'], 
+        data=[['H', 'M'], ['M', 'F']]))
 
-customers_0 = EpicDF(spark, dbks_tables['gld_client_file'])
+# customers_leg = EpicDF(spark, dbks_tables['gld_client_file'])
+# customers_legacy = (customers_leg
+#     .drop('bureau_req_ts', *filter(ϱ('startswith', 'ben_'), customers_leg.columns))
+#     .distinct())
 
-customers_1= EpicDF(customers_0
-    .drop('bureau_req_ts', *filter(ϱ('startswith', 'ben_'), customers_0.columns))
-    .distinct())
-
-customers_2 = EpicDF(customers_1
+customers_2 = (EpicDF(customers_fix)
     .with_column_plus(customers_extract['gld_client_file'])
     .with_column_plus(customers_extract['_val'])
     .with_column_plus(customers_extract['None'])
@@ -199,11 +350,6 @@ customers_4.save_as_file(
 
 # COMMAND ----------
 
-print(f"customers/{cust_time}.csv")
-customers_3.display()
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC ## Pagos
 
@@ -215,7 +361,7 @@ if haz_pagos:
             .rename(columns=falcon_rename))
     payments_specs.loc[1, 'column'] = 'modelSTUB' if w_stub else 'RBTRAN'
 
-    one_column = '~'.join(map(λ_name, payments_specs.itertuples()))    # pylint: disable=invalid-name
+    one_column = '~'.join(map(row_name, payments_specs.itertuples()))    # pylint: disable=invalid-name
 
     payments_extract = falcon_builder.get_extract(payments_specs, 'delta')
     payments_loader = falcon_builder.get_loader(payments_specs, 'fixed-width')
@@ -251,6 +397,7 @@ if haz_pagos:
 print("Filas AIS-post escritura")
 post_ais = (spark.read.format('csv')
     .load(f"{blob_path}/reports/accounts/{cust_time}.csv"))
+    
 (post_ais
     .select(F.length('_c0').alias('ais_longitud'))
     .groupBy('ais_longitud')
