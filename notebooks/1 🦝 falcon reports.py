@@ -13,39 +13,36 @@
 
 # COMMAND ----------
 
-from src import dependencies as deps
+import dependencies as deps
 deps.gh_epicpy('meetme-1', 
     tokenfile='../user_databricks.yml', typing=False, verbose=True)
 
 # COMMAND ----------
 
-import pytest
-
-# COMMAND ----------
-
 # pylint: disable=wrong-import-position
-# pylint: disable=wrong-import-order
 # pylint: disable=invalid-name
 from datetime import datetime as dt
 from operator import methodcaller as ϱ, eq
-from os import getenv
 from pathlib import Path
 from pytz import timezone as tz
 
 import pandas as pd
-from pyspark.sql import functions as F, Row, SparkSession   # pylint: disable=import-error
-from pyspark.dbutils import DBUtils     # pylint: disable=no-name-in-module,import-error
+from pyspark.sql import functions as F, Row, SparkSession
+from pyspark.dbutils import DBUtils    
 from toolz import curry, pipe
 
-from epic_py.delta import EpicDF, EpicDataBuilder
+from epic_py.delta import EpicDF, EpicDataBuilder, TypeHandler
 from epic_py.tools import dirfiles_df
 
 from src.head_foot import headfooters   # pylint: disable=ungrouped-imports
 from src import (app_agent, app_resourcer, blob_path,
-    dbks_tables, falcon_handler, falcon_rename)
+    dbks_tables, falcon_types, falcon_rename)
 
 spark = SparkSession.builder.getOrCreate()
 dbutils = DBUtils(spark)
+
+falcon_handler = TypeHandler(falcon_types)
+
 
 # COMMAND ----------
 
@@ -68,7 +65,6 @@ default_path = "../refs/upload-specs"
 
 dbutils.widgets.text('con_pagos', 'false', "Ejecutar PIS-Payment Info. Sec.")
 dbutils.widgets.text('workflow_stub', 'true', "Nombre de workflow como campo en reportes.")
-dbutils.widgets.text('hack_clients', 'false', "Hack para empatar los clientes de CIS y AIS.")
 dbutils.widgets.text('specs_local', 'true', "Archivo Feather p. Specs en Repo")
 
 
@@ -84,9 +80,6 @@ ref_path = pipe(w_get('specs_local'),
 w_stub = pipe(w_get('workflow_stub'), 
     ϱ('lower'), equal_to('true'))
 
-hack_clients = pipe(w_get('hack_clients'),
-    ϱ('lower'), equal_to('true'))
-
 falcon_builder = EpicDataBuilder(typehandler=falcon_handler)
 
 datalake = app_resourcer['storage']
@@ -97,22 +90,6 @@ app_resourcer.set_dbks_permissions(dlk_permissions)
 # COMMAND ----------
 
 COL_DEBUG = False
-
-if hack_clients: 
-    ids_c = (EpicDF(spark, dbks_tables['gld_client_file'])
-        .select('sap_client_id')
-        .distinct())
-    
-    # referencia de 19 dígitos:  F.concat(F.lit('765'), F.col('cms_account_id')), 
-    which_ids = (EpicDF(spark, dbks_tables['match_clients'])
-        .with_column_plus({
-            'BankAccountID': F.substring('core_account_id', 1, 11), 
-            'BorrowerID': F.col('client_id')})
-        .distinct()
-        .join(ids_c, how='inner', 
-            on=(ids_c['sap_client_id'] == F.col('BorrowerID'))))
-    which_ids.display()
-
 
 # COMMAND ----------
 
@@ -135,14 +112,9 @@ accounts_loader = falcon_builder.get_loader(accounts_specs, 'fixed-width')
 accounts_onecol = (F.concat(*accounts_specs['name'].values)
     .alias(ais_name))
 
-accounts_tbl = (dbks_tables['gld_cx_collections_loans'] 
-    if not hack_clients else 'prd.hyrule.view_account_balance_mapper')
+accounts_tbl = dbks_tables['gld_cx_collections_loans'] 
 
-if hack_clients: 
-    accounts_0 = (EpicDF(spark, accounts_tbl)
-        .join(which_ids, how='inner', on='client_id'))
-else: 
-    accounts_0 = EpicDF(spark, accounts_tbl)
+accounts_0 = EpicDF(spark, accounts_tbl)
 
 accounts_1 = (accounts_0
     .withColumn('type', F.lit('D'))
@@ -196,11 +168,7 @@ gender_df = spark.createDataFrame([
     Row(gender='H', gender_new='M'), 
     Row(gender='M', gender_new='F')])
 
-if hack_clients: 
-    customers_0 = (EpicDF(spark, dbks_tables['gld_client_file'])
-        .join(which_ids, on='sap_client_id', how='semi'))
-else: 
-    customers_0 = EpicDF(spark, dbks_tables['gld_client_file'])
+customers_0 = EpicDF(spark, dbks_tables['gld_client_file'])
 
 customers_1= EpicDF(customers_0
     .drop('bureau_req_ts', *filter(ϱ('startswith', 'ben_'), customers_0.columns))

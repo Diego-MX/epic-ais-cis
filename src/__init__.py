@@ -1,22 +1,25 @@
 # SRC asume que EPICPY está instalado.
 
-import config as c
-from epicpy.platform import EpicIdentity
+from epic_py.platform import EpicIdentity
+import config as cfg
 
-app_agent = EpicIdentity.create(server=c.SERVER, config=c.SETUP_KEYS[c.ENV])
-app_resourcer = app_agent.get_resourcer(AZURE_RESOURCES[ENV], check_all=False)
 
-dbks_tables = DBKS_MAPPING
-blob_path = (app_resourcer.get_resource_url('abfss', 'storage',
-        container='gold', blob_path=True))
+app_agent = EpicIdentity.create(server=cfg.SERVER, config=cfg.SETUP_KEYS[cfg.ENV])
+app_resourcer = app_agent.get_resourcer(cfg.AZURE_RESOURCES[cfg.ENV], check_all=False)
 
-falcon_handler = TypeHandler({
+dbks_tables = cfg.DBKS_MAPPING
+
+blob_path = app_resourcer['storage-path']['fraud']
+blob_abfss = (app_resourcer.get_resource_url('abfss', 'storage',
+        container='gold', blob_path=pre_path))
+
+falcon_types = {
     'int' : {'NA_str': ''}, 
     'long': {'NA_str': ''},
     'dbl' : {'NA_str': ''}, 
     'str' : {'NA_str': '', 'encoding': 'ascii'},
     'date': {'NA_str': ' '*8, 'c_format': '%8s'},
-    'ts'  : {'NA_str': ' '*6, 'c_format': '%6s'}})
+    'ts'  : {'NA_str': ' '*6, 'c_format': '%6s'}}
 
 falcon_rename = {
     'FieldName' : 'name',

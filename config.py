@@ -8,6 +8,12 @@ V_TYPING = '4.7.1'
 
 ## Infrastructure resources are defined here.
 SETUP_KEYS = {
+    'dev': {
+        'service-principal': { 
+            'client_id'      : 'CLIENT_ID_DEV',             #'QAS_SP_CLIENT',
+            'client_secret'  : 'CLIENT_SECRET_DEV',         #'QAS_SP_SECRET',
+            'subscription_id': 'SUBSCRIPTION_ID_DEV',       #'QAS_SP_SUBSTN',
+            'tenant_id'      : 'TENANT_ID_DEV'}},           #'AAD_TENANT'},
     'qas': {
         'service-principal': { 
             'client_id'      : 'sp-core-events-client',         #'QAS_SP_CLIENT',
@@ -32,6 +38,11 @@ SETUP_KEYS = {
 }
 
 AZURE_RESOURCES = {
+    'dev': {
+        'keyvault' : 'kv-cx-data-qas',
+        'storage'  : 'stlakehyliaqas', 
+        'storage_path': "ops/fraud-prevention", 
+        'blob_path': "ops/fraud-prevention"}, 
     'qas': {
         'keyvault' : 'kv-cx-data-qas',
         'storage'  : 'stlakehyliaqas', 
@@ -51,9 +62,8 @@ AZURE_RESOURCES = {
 }
 
 DBKS_MAPPING = { # Key from Excel Refs, Value on DBKS metastore.
-    'gld_client_file'         : 'din_clients.gld_client_file', 
-    'gld_cx_collections_loans': 'nayru_accounts.gld_cx_collections_loans'
-}
+    'clients' : 'star_schema.dim_client', 
+    'accounts': 'star_schema.current_account_x'}
 
 
 

@@ -27,7 +27,7 @@ def prepare_excelref(xls_df: pd.DataFrame):
 
 if __name__ == '__main__':
     load_dotenv(override=True)
-    from config import blob_path, app_resourcer
+    from src import blob_path, app_resourcer
     tmp_path = "refs/upload-specs"  # pylint: disable=invalid-name
 
     # table: sheet
@@ -36,7 +36,7 @@ if __name__ == '__main__':
         'accounts':  'AIS',
         'customers': 'CIS'}
 
-    a_ref, sheet = 'payments', 'PIS'
+    a_ref, sheet = 'customers', 'CIS'
     for a_ref, sheet in data_ref.items():
         now_str = (dt.now(tz=timezone("America/Mexico_City"))
                 .strftime("%Y-%m-%d_%H:%M"))

@@ -2,10 +2,11 @@
 Módulo para generar FlatFileInfo a modo de pruebas. 
 """
 
+TEST_INFO = False
+
 meta_info = dict(option=True, vendor='fiserv')
 
-test_info = False
-lengths = (15, 10) if test_info else (1866, 1136)
+lengths = (15, 10) if TEST_INFO else (1866, 1136)
 
 cust_opts = {
     'filler'            : lengths[0], 
@@ -37,7 +38,7 @@ headfooters = {
 
 
 if __name__ == '__main__': 
-    from epic_py.delta.table_info import FlatFileInfo
+    from epic_py.delta import FlatFileInfo
     choose_one = ('customer', 'header')
     flatter = FlatFileInfo.create(**headfooters[choose_one])
     print(flatter.info_to_row())
