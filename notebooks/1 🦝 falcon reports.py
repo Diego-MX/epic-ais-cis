@@ -34,6 +34,7 @@ from pyspark.sql import functions as F, Row, SparkSession   # pylint: disable=im
 from pyspark.dbutils import DBUtils     # pylint: disable=no-name-in-module,import-error
 from toolz import curry, pipe
 
+import config as cfg # <---
 from epic_py.delta import EpicDF, EpicDataBuilder
 from epic_py.tools import dirfiles_df
 
@@ -68,6 +69,7 @@ dbutils.widgets.text('workflow_stub', 'true', "Nombre de workflow como campo en 
 dbutils.widgets.text('hack_clients', 'false', "Hack para empatar los clientes de CIS y AIS.")
 dbutils.widgets.text('specs_local', 'true', "Archivo Feather p. Specs en Repo")
 
+ENV = cfg.ENV+"."
 
 # COMMAND ----------
 
@@ -118,10 +120,6 @@ if hack_clients:
 
 # COMMAND ----------
 
-accounts_tbl = (EpicDF(spark, dbks_tables['accounts'])) # Tiene que ser Current Account.
-
-# COMMAND ----------
-
 acct_time = get_time()
 accounts_specs = (pd.read_feather(ref_path/'accounts_cols.feather')
         .rename(columns=falcon_rename))
@@ -136,9 +134,7 @@ accounts_loader = falcon_builder.get_loader(accounts_specs, 'fixed-width')
 accounts_onecol = (F.concat(*accounts_specs['name'].values)
     .alias(ais_name))
 
-accounts_tbl = (EpicDF(spark, dbks_tables['accounts'])) # Tiene que ser Current Account.
-
-# accounts_tbl = (EpicDF(spark, dbks_tables['accounts']))
+accounts_tbl = (EpicDF(spark, ENV+dbks_tables['accounts'])) # Tiene que ser Current Account.
 
 fiserv_transform = (lambda accs_df: accs_df
     .withColumnRenamed('ID', 'BorrowerID')
@@ -156,12 +152,13 @@ accounts_1 = (accounts_0
     .with_column_plus(accounts_extract['None']))
 
 accounts_2 = accounts_1.select_plus(accounts_loader)
-accounts_2.display()
 
 accounts_3 = (accounts_2
     .select(accounts_onecol)
     .prep_one_col(header_info=headfooters[('account', 'header')],
                  trailer_info=headfooters[('account', 'footer')]))
+
+accounts_3.display()
 
 accounts_3.save_as_file(
     f"{blob_path}/reports/accounts/{acct_time}.csv",
@@ -196,12 +193,15 @@ customers_extract = falcon_builder.get_extract(customers_specs, 'delta')
 customers_loader  = falcon_builder.get_loader(customers_specs, 'fixed-width')
 customers_onecol  = (F.concat(*customers_specs['name'].values)
     .alias(cis_name))
-
+print(customers_onecol)
 gender_df = spark.createDataFrame([
     Row(gender='H', gender_new='M'), 
     Row(gender='M', gender_new='F')])
 
-customers_0 = EpicDF(spark, dbks_tables['client'])
+kyc_df = spark.createDataFrame([
+    Row(kyc_occupation = "kyc_occupation")])
+
+customers_0 = EpicDF(spark, ENV+dbks_tables['client'])
 
 customers_ii = (spark.read.table("qas.star_schema.dim_client")
         .select(F.col("client_id").alias("sap_client_id"),       
@@ -212,7 +212,7 @@ customers_ii = (spark.read.table("qas.star_schema.dim_client")
                 F.col("current_email_address").alias("user_email"),      
                 F.col("birth_date").alias("fad_birth_day"),        
                 F.col("birth_place_name").alias("fad_birth_cntry"),   
-                F.col("addr_district").alias("user_neinghborhood"),   
+                F.col("addr_district").alias("user_neighborhood"),   
                 F.col("region").alias("fad_state"),
                 F.col("person_gender").alias("gender"),
                 F.concat_ws( " ","addr_street","addr_external_number").alias("fad_addr_1"))       
@@ -222,14 +222,17 @@ customers_1= EpicDF(customers_ii
     .drop('bureau_req_ts', *filter(ϱ('startswith', 'ben_'), customers_0.columns))
     .distinct())
 
-customers_1.display()
-# customers_2 = EpicDF(customers_1
-#     .with_column_plus(customers_extract['gld_client_file'])
-#     .with_column_plus(customers_extract['_val'])
-#     .with_column_plus(customers_extract['None'])
-#     .join(gender_df, on='gender')
-#     .drop('gender')
-#     .withColumnRenamed('gender_new', 'gender'))
+# customers_1.display() # <---
+
+print(customers_extract['gld_client_file'])
+
+customers_2 = EpicDF(customers_1)
+    # .with_column_plus(customers_extract['gld_client_file'])
+    # .with_column_plus(customers_extract['_val'])
+    # .with_column_plus(customers_extract['None'])
+    # .join(gender_df, on='person_gender')
+    # .drop('person_gender')
+    # .withColumnRenamed('gender_new', 'person_gender'))
 
 # customers_2.display()
 
@@ -245,20 +248,6 @@ customers_1.display()
 #     f"{blob_path}/reports/customers/{cust_time}.csv",
 #     f"{blob_path}/reports/customers/tmp_delta",
 #     header=False, ignoreTrailingWhiteSpace=False, ignoreLeadingWhiteSpace=False)
-
-# COMMAND ----------
-
-
-
-custumer_ii.display()
-
-# COMMAND ----------
-
-# costumer_ii = (spark.read.table("qas.star_schema.dim_client"))
-# in_dim_client = custumers_specs["column"].isin(customer_ii.columns)
-# custumers_specs["column"][in_dim_client]
-
-
 
 # COMMAND ----------
 

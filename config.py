@@ -10,17 +10,17 @@ V_TYPING = '4.7.1'
 SETUP_KEYS = {
     'qas': {
         'service-principal': { 
-            'client_id'      : 'sp-core-events-client',         #'QAS_SP_CLIENT',
-            'client_secret'  : 'sp-core-events-secret',         #'QAS_SP_SECRET',
-            'subscription_id': 'sp-core-events-subscription',   #'QAS_SP_SUBSTN',
-            'tenant_id'      : 'aad-tenant-id'},                #'AAD_TENANT'},
-        'databricks-scope': 'eh-core-banking'}, 
+            'client_id'      : 'sp-core-events-client',      #'QAS_SP_CLIENT',
+            'client_secret'  : 'sp-core-events-secret',      #'QAS_SP_SECRET',
+            'subscription_id': 'sp-core-events-subscription',#'QAS_SP_SUBSTN',
+            'tenant_id'      : 'aad-tenant-id'},             #'AAD_TENANT'},
+            'databricks-scope': 'eh-core-banking'},
     'stg': {
-        'service-principal': { #                                # oauth-databricks-qas
-            'client_id'      : 'sp-core-events-client',         #'QAS_SP_CLIENT',
-            'client_secret'  : 'sp-core-events-secret',         #'QAS_SP_SECRET', 
-            'subscription_id': 'sp-core-events-suscription',    #'QAS_SP_SUBSTN', 
-            'tenant_id'      : 'aad-tenant-id'},                #'AAD_TENANT'},
+    'service-principal': {                                   # oauth-databricks-qas
+            'client_id'      : 'sp-core-events-client',      #'QAS_SP_CLIENT',
+            'client_secret'  : 'sp-core-events-secret',      #'QAS_SP_SECRET', 
+            'subscription_id': 'sp-core-events-suscription', #'QAS_SP_SUBSTN', 
+            'tenant_id'      : 'aad-tenant-id'},             #'AAD_TENANT'},
         'databricks-scope': 'eh-core-banking'}, 
     'prd': {
         'service-principal': {

@@ -1,6 +1,6 @@
 # libreria Establecida por Databricks azure
 
-import azure as azure
+import azure as azure # <----
 from azure.core.credentials import AccessToken
 from azure.core.exceptions import (ClientAuthenticationError, 
                                     ResourceNotFoundError, 
@@ -10,11 +10,11 @@ from azure.identity import (ClientSecretCredential,
 from azure.keyvault.secrets import (SecretClient, 
                                     KeyVaultSecret,
                                     KeyVaultSecretIdentifier) 
-# from azure.storage.blob import BlobServiceClient,ContainerClient
+# from azure.storage.blob import BlobServiceClient,ContainerClient # <----
 from pyspark.dbutils import DBUtils
 from pyspark.sql import SparkSession
 
-# print(dir(azure.keyvault.secrets.KeyVaultSecretIdentifier.name.fget))
+# print(dir(azure.keyvault.secrets.KeyVaultSecretIdentifier.name.fget)) # <----
 
 # libreria de python
 
@@ -25,14 +25,14 @@ from pathlib import Path
 from toolz import dicttoolz as dtoolz
 from yaml import safe_load
 
-# print(dir(os),os.getcwd())
+# print(dir(os),os.getcwd()) # <----
 
 # Librerias personales
 import config as cfg 
 import dependencies as deps
-deps.gh_epicpy('meetme-1', 
-    tokenfile='../user_databricks.yml', typing=False, verbose=True)
-from epic_py.delta import EpicDF, EpicDataBuilder
+# deps.gh_epicpy('meetme-1', 
+#     tokenfile='../user_databricks.yml', typing=False, verbose=True) # <----
+# from epic_py.delta import EpicDF, EpicDataBuilder # <----
 from src import (app_agent, app_resourcer,
                 blob_path, dbks_tables, 
                 falcon_handler, falcon_rename)
@@ -71,69 +71,34 @@ class Test:
         except Exception as e: 
             pytest.fail(f"Error with Service Principal's token: {e}")
         return
-    
-    # def test_keyvault(self): # Revisión de recursos que funcionen correctamente
-    #     setup = cfg.SETUP_KEYS[cfg.ENV]
-    #     resources = cfg.AZURE_RESOURCES[cfg.ENV]
-    #     key_vault = resources["keyvault"]
-    #     vault_url = f"https://{key_vault}.azure.net/"
-    #     a_secret = setup["service-principal"]["tenant_id"]
-        
-    #     try:  
-    #         principal = self.get_principal()
-    #         key_client = SecretClient(vault_url, principal) # Si el cliente tiene permisos
-    #         print(key_client,setup)
-    #         check_secret = key_client.get_secret(a_secret) # Si el secreto existe 
-    #         assert isinstance(check_secret,KeyVaultSecret), "KeyVault or Secret Fail."
 
-    #     except ResourceNotFoundError as e:
-    #         pytest.fail(f"SecretClient OK, Secret doesnt exist [{key_vault}, {a_secret}]: {e}")
-
-    #     except ClientAuthenticationError as e:
-    #         pytest.fail(f"Failed to authenticate SecretClient [{key_vault}]: {e}")
-
-    #     except ServiceRequestError as e:
-    #         pytest.fail(f"Failed to establish a new connection: [Errno -2] Name or service not known {e}")
-    #     # except Exception as e:
-    #     #     pytest.fail(f"Unexpected error with KeyVault, Secret [{key_vault}, {a_secret}]:\n {e}")
-    #     return
-
-    def test_permisos(self): # Sigue en investigación 
-
+    def test_keyvault(self): # Sigue en investigación 
         keyvault = cfg.AZURE_RESOURCES[cfg.ENV]["keyvault"]
         vault_url = f"https://{keyvault}.vault.azure.net/"
         principal_credential = self.get_principal()
         key_client = SecretClient(vault_url,principal_credential)
+        D_agent = cfg.SETUP_KEYS[cfg.ENV]["service-principal"]
 
-        # D_agent = cfg.SETUP_KEYS[cfg.ENV]["service-principal"] # Todos los secretos indican que no pertenencen, debo de verificar su origen, solo aad-tenant-id pasa
-
-        # for key, vault in D_agent.items():
-        #     print(key,vault)
-        #     print(isinstance(key_client.get_secret(vault),KeyVaultSecret))
-
-        # print(D_agent)
-
-        # a = dbutils.secrets.get(scope = "eh-core-banking",key="aad-tenant-id")
-        # for i in a:
-        #     print(i)
-
-        secret = key_client.get_secret('sp-collections-secret')
-        print(secret.name)
-        print(secret.value)
-        a = key_client.list_properties_of_secrets()
-        # print(type(a),type(secret))
-        for a in a:
-            print(a.name)
+        for key, vault in D_agent.items():
             try:
-                secret = key_client.get_secret(a.name)
-                print(secret)
-                print(secret.value)
-                print(isinstance(secret,KeyVaultSecret))
-            except Exception as e:
-                print(e)
+                assert isinstance(key_client.get_secret(vault),KeyVaultSecret), f"A secret with {vault} was not found in this key vault"
+
+            except ResourceNotFoundError as e:
+                pytest.fail(f"SecretClient OK, Secret doesnt exist [{keyvault}, {vault}]: {e}")
                 pass
-        print(isinstance(secret,KeyVaultSecret))
-        # assert isinstance(app_resourcer.set_dbks_permissions(dlk_permissions),ContainerClient),"Fallo" 
+
+            except ClientAuthenticationError as e:
+                pytest.fail(f"Failed to authenticate SecretClient [{keyvault}]: {e}")
+                pass
+
+            except ServiceRequestError as e:
+                pytest.fail(f"Failed to establish a new connection: [Errno -2] Name or service not known {e}")
+                pass
+    
+            except Exception as e:
+                pytest.fail(f"Unexpected error with KeyVault, Secret [{keyvault}, {vault}]:\n {e}")
+                pass
+
         return 
 
     def test_feather(self):
@@ -148,7 +113,7 @@ class Test:
 
         return 
 
-    # def test_feather_col(self): # Falta hacer la compración ya estan los nombres de las columnas disponibles para poder utilizarlos
+    # def test_feather_col(self): # Falta hacer la compración, ya estan los nombres de las columnas disponibles para poder utilizarlos
 
     #     feathers = self.get_feathers()
 
@@ -180,9 +145,9 @@ class Test:
 
     def test_tbl_exist(self):
         for tbl_key, tbl_name in cfg.DBKS_MAPPING.items():
-            print(tbl_key, tbl_name)
+            tbl_name = cfg.ENV+"."+tbl_name
             assert spark.catalog.tableExists(tbl_name),f"Tabla no encontrada {tbl_name}"
 
-Test = Test()
-Activo = Test.test_permisos()
-print(Activo)
+# Test = Test()
+# Activo = Test.test_tbl_exist()
+# print(Activo)
