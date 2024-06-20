@@ -38,6 +38,7 @@ headfooters = {
 
 if __name__ == '__main__': 
     from epic_py.delta.table_info import FlatFileInfo
+    import os
     choose_one = ('customer', 'header')
     flatter = FlatFileInfo.create(**headfooters[choose_one])
     print(flatter.info_to_row())

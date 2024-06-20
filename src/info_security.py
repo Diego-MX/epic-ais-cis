@@ -7,12 +7,15 @@ from pytz import timezone
 from dotenv import load_dotenv
 import pandas as pd
 
-from epic_py.tools import read_excel_table
+import dependencies as deps #j
+import re
+deps.gh_epicpy(deps.EPIC_REF,deps.USER_FILE) #j
 
+from epic_py.tools import read_excel_table
+from pathlib import WindowsPath, Path
 
 ref_path = "refs/Security Info.xlsx.lnk"    # pylint: disable=invalid-name
 cols_ref = (ref_path, 'Approach', 'fraud_cols')
-
 meta_cols = read_excel_table(*cols_ref).set_index('columna')   # pylint: disable=invalid-name
 col_types = meta_cols['tipo'].dropna()      # pylint: disable=unsubscriptable-object
 

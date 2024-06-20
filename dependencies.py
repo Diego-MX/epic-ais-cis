@@ -9,21 +9,19 @@ from subprocess import check_call
 from pkg_resources import working_set
 from pyspark.dbutils import DBUtils     # pylint: disable=no-name-in-module
 from pyspark.sql import SparkSession  
+import config as config
+# from config import REQS_FILE, V_TYPING, EPICPY_REF, USER_FILE
+
 has_yaml = 'yaml' in working_set.by_key
 
-REQS_FILE = '../reqs_dbks.txt'
-USER_FILE = '../user_databricks.yml'
-EPIC_REF = 'gh-1.3'
-V_TYPING = '4.7.1'
-
 def from_reqsfile(a_file=None): 
-    a_file = a_file or REQS_FILE
+    a_file = a_file or config.REQS_FILE
     pip_install('-r', a_file)
     return 
 
 def gh_epicpy(ref=None, tokenfile=None, typing=None, verbose=False): 
     if typing: 
-        v_typing = V_TYPING if typing is True else typing
+        v_typing = config.V_TYPING if typing is True else typing
         pip_install('--upgrade', f"typing-extensions=={v_typing}")
     the_keys = {
         'url'  : 'github.com/Bineo2/data-python-tools.git', 
@@ -44,6 +42,7 @@ def token_from_userfile(userfile):
         tokener = safe_load(_f)
     spark = SparkSession.builder.getOrCreate()
     dbutils = DBUtils(spark)
+
     return dbutils.secrets.get(tokener['dbks_scope'], tokener['dbks_token']) 
     
 def pip_install(*args): 

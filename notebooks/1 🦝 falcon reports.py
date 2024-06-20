@@ -13,7 +13,8 @@
 
 # COMMAND ----------
 
-from src import dependencies as deps
+import src as src
+import dependencies as deps 
 deps.gh_epicpy('meetme-1', 
     tokenfile='../user_databricks.yml', typing=False, verbose=True)
 
@@ -37,7 +38,7 @@ from epic_py.delta import EpicDF, EpicDataBuilder
 from epic_py.tools import dirfiles_df
 
 from src.head_foot import headfooters   # pylint: disable=ungrouped-imports
-from config import (app_agent, app_resourcer, blob_path,
+from src import (app_agent, app_resourcer, blob_path,
     dbks_tables, falcon_handler, falcon_rename)
 
 spark = SparkSession.builder.getOrCreate()
@@ -117,6 +118,10 @@ if hack_clients:
 
 # COMMAND ----------
 
+accounts_tbl = (EpicDF(spark, dbks_tables['accounts'])) # Tiene que ser Current Account.
+
+# COMMAND ----------
+
 acct_time = get_time()
 accounts_specs = (pd.read_feather(ref_path/'accounts_cols.feather')
         .rename(columns=falcon_rename))
@@ -131,14 +136,18 @@ accounts_loader = falcon_builder.get_loader(accounts_specs, 'fixed-width')
 accounts_onecol = (F.concat(*accounts_specs['name'].values)
     .alias(ais_name))
 
-accounts_tbl = (dbks_tables['gld_cx_collections_loans'] 
-    if not hack_clients else 'prd.hyrule.view_account_balance_mapper')
+accounts_tbl = (EpicDF(spark, dbks_tables['accounts'])) # Tiene que ser Current Account.
 
-if hack_clients: 
-    accounts_0 = (EpicDF(spark, accounts_tbl)
-        .join(which_ids, how='inner', on='client_id'))
-else: 
-    accounts_0 = EpicDF(spark, accounts_tbl)
+# accounts_tbl = (EpicDF(spark, dbks_tables['accounts']))
+
+fiserv_transform = (lambda accs_df: accs_df
+    .withColumnRenamed('ID', 'BorrowerID')
+    .filter(F.col('ProductID').isin(['EPC_TA_N2', 'EPC_TA_MA1']))
+    .withColumn('Type', 
+        F.when(F.col('ProductID').isin(['EPC_TA_N2', 'EPC_TA_MA1']), 'D')
+            .otherwise(F.col('ProductID'))))
+
+accounts_0 = fiserv_transform(accounts_tbl)
 
 accounts_1 = (accounts_0
     .withColumn('type', F.lit('D'))
@@ -192,43 +201,64 @@ gender_df = spark.createDataFrame([
     Row(gender='H', gender_new='M'), 
     Row(gender='M', gender_new='F')])
 
-if hack_clients: 
-    customers_0 = (EpicDF(spark, dbks_tables['gld_client_file'])
-        .join(which_ids, on='sap_client_id', how='semi'))
-else: 
-    customers_0 = EpicDF(spark, dbks_tables['gld_client_file'])
+customers_0 = EpicDF(spark, dbks_tables['client'])
 
-customers_1= EpicDF(customers_0
+customers_ii = (spark.read.table("qas.star_schema.dim_client")
+        .select(F.col("client_id").alias("sap_client_id"),       
+                F.col("first_name").alias("user_first_name"),
+                F.col("last_name").alias("user_first_last_name"),       
+                F.col("last_name2").alias("user_second_last_name"),      
+                F.col("phone_number").alias("user_phone_number"),      
+                F.col("current_email_address").alias("user_email"),      
+                F.col("birth_date").alias("fad_birth_day"),        
+                F.col("birth_place_name").alias("fad_birth_cntry"),   
+                F.col("addr_district").alias("user_neinghborhood"),   
+                F.col("region").alias("fad_state"),
+                F.col("person_gender").alias("gender"),
+                F.concat_ws( " ","addr_street","addr_external_number").alias("fad_addr_1"))       
+        ).distinct()
+
+customers_1= EpicDF(customers_ii
     .drop('bureau_req_ts', *filter(ϱ('startswith', 'ben_'), customers_0.columns))
     .distinct())
 
-customers_2 = EpicDF(customers_1
-    .with_column_plus(customers_extract['gld_client_file'])
-    .with_column_plus(customers_extract['_val'])
-    .with_column_plus(customers_extract['None'])
-    .join(gender_df, on='gender')
-    .drop('gender')
-    .withColumnRenamed('gender_new', 'gender'))
+customers_1.display()
+# customers_2 = EpicDF(customers_1
+#     .with_column_plus(customers_extract['gld_client_file'])
+#     .with_column_plus(customers_extract['_val'])
+#     .with_column_plus(customers_extract['None'])
+#     .join(gender_df, on='gender')
+#     .drop('gender')
+#     .withColumnRenamed('gender_new', 'gender'))
 
-customers_2.display()
+# customers_2.display()
 
-customers_3 = (customers_2
-    .select_plus(customers_loader))
+# customers_3 = (customers_2
+#     .select_plus(customers_loader))
 
-customers_4 = (customers_3
-    .select(customers_onecol)
-    .prep_one_col(header_info=headfooters[('customer', 'header')],
-                 trailer_info=headfooters[('customer', 'footer')]))
+# customers_4 = (customers_3
+#     .select(customers_onecol)
+#     .prep_one_col(header_info=headfooters[('customer', 'header')],
+#                  trailer_info=headfooters[('customer', 'footer')]))
 
-customers_4.save_as_file(
-    f"{blob_path}/reports/customers/{cust_time}.csv",
-    f"{blob_path}/reports/customers/tmp_delta",
-    header=False, ignoreTrailingWhiteSpace=False, ignoreLeadingWhiteSpace=False)
+# customers_4.save_as_file(
+#     f"{blob_path}/reports/customers/{cust_time}.csv",
+#     f"{blob_path}/reports/customers/tmp_delta",
+#     header=False, ignoreTrailingWhiteSpace=False, ignoreLeadingWhiteSpace=False)
 
 # COMMAND ----------
 
-print(f"customers/{cust_time}.csv")
-customers_3.display()
+
+
+custumer_ii.display()
+
+# COMMAND ----------
+
+# costumer_ii = (spark.read.table("qas.star_schema.dim_client"))
+# in_dim_client = custumers_specs["column"].isin(customer_ii.columns)
+# custumers_specs["column"][in_dim_client]
+
+
 
 # COMMAND ----------
 
