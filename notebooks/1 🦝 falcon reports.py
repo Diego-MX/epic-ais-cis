@@ -80,6 +80,7 @@ dbutils.widgets.text('con_pagos', 'false', "Ejecutar PIS-Payment Info. Sec.")
 dbutils.widgets.text('workflow_stub', 'true', "Nombre de workflow como campo en reportes.")
 dbutils.widgets.text('specs_local', 'true', "Archivo Feather p. Specs en Repo")
 
+ENV = cfg.ENV+"."
 
 # COMMAND ----------
 
@@ -196,12 +197,13 @@ accounts_1 = (accounts_0
     .with_column_plus(accounts_extract['None']))
 
 accounts_2 = accounts_1.select_plus(accounts_loader)
-accounts_2.display()
 
 accounts_3 = (accounts_2
     .select(accounts_onecol)
     .prep_one_col(header_info=headfooters[('account', 'header')],
                  trailer_info=headfooters[('account', 'footer')]))
+
+accounts_3.display()
 
 accounts_3.save_as_file(
     f"{app_abfss}/reports/accounts/{acct_time}.csv",
@@ -224,8 +226,47 @@ accounts_3.save_as_file(
 # MAGIC * Un filtrado de datos repetidos debido al desmadre que se hizo con `kyc`.  
 
 # COMMAND ----------
+gender_df = spark.createDataFrame([
+    Row(fad_gender='H', gender_new='M'), 
+    Row(fad_gender='M', gender_new='F')])
 
+customers_i = (EpicDF(spark,ENV+dbks_tables["client"])
+               .select(F.col("client_id"),
+                       F.col("kyc_id"),
+                       F.col("kyc_answer")
+                       ))
 
+customers_i  = (customers_i
+                .groupby("client_id")
+                .pivot("kyc_id")
+                .agg(F.first("kyc_answer"))
+                .select(F.col("client_id"),
+                        F.col("OCCUPATION").alias("kyc_occupation"),
+                        F.col("SOURCEOFINCOME").alias("kyc_src_income")
+                        ))
+
+customers_0 = (EpicDF(spark,ENV+dbks_tables["client"])
+                .drop("kyc_id")
+                .drop("kyc_answer")
+                ).distinct().join(customers_i,"client_id","inner")
+
+customers_1 = (customers_0.select(F.col("client_id").alias("sap_client_id"),       
+                F.col("first_name").alias("user_first_name"),
+                F.col("last_name").alias("user_first_last_name"),       
+                F.col("last_name2").alias("user_second_last_name"),      
+                F.col("phone_number").alias("user_phone_number"),      
+                F.col("current_email_address").alias("user_email"),      
+                F.col("birth_date").alias("fad_birth_date"),        
+                F.col("birth_place_name").alias("fad_birth_cntry"),   
+                F.col("addr_district").alias("user_neighborhood"),   
+                F.col("region").alias("fad_state"),
+                F.col("person_rfc").alias("user_rfc"),
+                F.col("person_gender").alias("fad_gender"),
+                F.concat_ws( " ","addr_street","addr_external_number").alias("fad_addr_1"),
+                F.col("kyc_occupation"),
+                F.col("kyc_src_income"))       
+                ).distinct()
+# COMMAND ----------
 agg_one = lambda cc: F.any_value(cc).alias(cc)
     
 def one_customers(df_0): 
@@ -250,10 +291,6 @@ def x_customers(df_0):
         .groupBy('client_id').agg(agg_one('x_address'))
         .join(kyc_df, 'client_id', how='left'))
     return df_1
-
-
-# COMMAND ----------
-
 
 
 # COMMAND ----------
@@ -285,9 +322,6 @@ customers_loader  = falcon_builder.get_loader(customers_specs, 'fixed-width')
 customers_onecol  = (F.concat(*customers_specs['name'].values)
     .alias(cis_name))
 
-gender_df = EpicDF(spark, pd.DataFrame(
-        columns=['gender', 'gender_new'], 
-        data=[['H', 'M'], ['M', 'F']]))
 
 customers_0 = EpicDF(spark, dbks_tables['clients'])
 
@@ -366,8 +400,8 @@ post_ais = (spark.read.format('csv')
 (post_ais
     .select(F.length('_c0').alias('ais_longitud'))
     .groupBy('ais_longitud')
-    .count()
-    .display())
+    .count())
+ais_inf.display()
 
 # COMMAND ----------
 
@@ -377,8 +411,39 @@ post_cis = (spark.read.format('csv')
 (post_cis
     .select(F.length('_c0').alias('cis_longitud'))
     .groupBy('cis_longitud')
-    .count()
-    .display())
+    .count())
+cis_inf.display()
+
+# COMMAND ----------
+
+import matplotlib.pyplot as plt
+
+ais_cnts = ais_inf.collect()[0]["count"]
+ais_long = ais_inf.collect()[0]["ais_longitud"]
+cis_cnts = cis_inf.collect()[0]["count"]
+cis_long = cis_inf.collect()[0]["cis_longitud"]
+
+name = ["AIS","CIS"]
+count = [ais_cnts,cis_cnts]
+long = [ais_long,cis_long]
+color = ["blue","red"]
+
+name2 = []; name3 = []
+
+for i in range(0,len(name),1):
+    name2.append(name[i]+" - "+str(count[i]))
+    name3.append(name[i]+" - "+str(long[i]))
+    
+print(name2, name3)
+fig,ax = plt.subplots(1,2,figsize = (9,3),sharey = False)
+ax[0].bar(name,count,label = name2, color = color)
+ax[0].legend()
+print(dir(plt.grid()))
+ax[1].bar(name,long,label = name3,color = color)
+ax[1].legend()
+
+plt.show()
+
 
 # COMMAND ----------
 

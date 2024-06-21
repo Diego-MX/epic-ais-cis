@@ -2,12 +2,15 @@
 Read specs from Excel file and upload to blob file. 
 """
 from datetime import datetime as dt
+from pathlib import WindowsPath, Path
 from pytz import timezone
+import re   
 
 from dotenv import load_dotenv
 import pandas as pd
 
 from epic_py.tools import read_excel_table
+from src import app_path, app_resourcer
 
 
 ref_path = "refs/Security Info.xlsx.lnk"    # pylint: disable=invalid-name
@@ -26,10 +29,9 @@ def prepare_excelref(xls_df: pd.DataFrame):
 
 
 if __name__ == '__main__':
-    load_dotenv(override=True)
-    from src import app_path, app_resourcer
     tmp_path = "refs/upload-specs"  # pylint: disable=invalid-name
-
+    load_dotenv(override=True)
+    
     # table: sheet
     data_ref = {
         'payments':  'PIS',

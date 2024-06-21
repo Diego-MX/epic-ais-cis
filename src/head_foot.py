@@ -1,6 +1,8 @@
 """DX, 5 de septiembre de 2023
 Módulo para generar FlatFileInfo a modo de pruebas. 
 """
+from epic_py.delta import FlatFileInfo
+
 
 TEST_INFO = False
 
@@ -38,7 +40,6 @@ headfooters = {
 
 
 if __name__ == '__main__': 
-    from epic_py.delta import FlatFileInfo
     choose_one = ('customer', 'header')
     flatter = FlatFileInfo.create(**headfooters[choose_one])
     print(flatter.info_to_row())
