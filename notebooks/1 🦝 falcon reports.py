@@ -19,6 +19,11 @@ deps.gh_epicpy('meetme-1',
 
 # COMMAND ----------
 
+# MAGIC %load_ext autoreload
+# MAGIC %autoreload 2
+
+# COMMAND ----------
+
 # pylint: disable=wrong-import-position
 # pylint: disable=wrong-import-order
 # pylint: disable=invalid-name
@@ -30,19 +35,21 @@ from pathlib import Path
 from pytz import timezone as tz
 
 import pandas as pd
-from pyspark.sql import functions as F, Row, SparkSession 
-from pyspark.dbutils import DBUtils   
-from toolz import curry, pipe
+from pyspark.sql import functions as F, Row, SparkSession
+from pyspark.dbutils import DBUtils     # pylint: disable=no-name-in-module,import-error
+from toolz import curry, pipe, remove
+from toolz.curried import map as map_z
 
-from epic_py.delta import EpicDF, EpicDataBuilder
-from epic_py.tools import dirfiles_df
+from epic_py.delta import EpicDF, EpicDataBuilder, TypeHandler
+from epic_py.tools import dirfiles_df, partial2
 
-from src.head_foot import headfooters 
-from src import (app_agent, app_resourcer, app_abfss,
-    dbks_tables, falcon_handler, falcon_rename)
+from src import (app_agent, app_resourcer, app_abfss, app_path,
+    dbks_tables, falcon_types, falcon_rename)
+from src.head_foot import headfooters   # pylint: disable=ungrouped-imports
 
 spark = SparkSession.builder.getOrCreate()
 dbutils = DBUtils(spark)
+falcon_handler = TypeHandler(falcon_types)
 
 # COMMAND ----------
 
@@ -60,8 +67,6 @@ def replace_if(eq_val, rep_val):
     # compose(packed(if_else), juxt(constant(rep_val), equal_to(eq_val), identity))
     # Más complicado 😒
     return (lambda xx: rep_val if xx == eq_val else xx)
-
-equal_to = curry(eq)
 
 def get_time(a_tz="America/Mexico_City", time_fmt="%Y-%m-%d"):
     return dt.now(tz=tz(a_tz)).strftime(format=time_fmt)
@@ -81,7 +86,7 @@ dbutils.widgets.text('specs_local', 'true', "Archivo Feather p. Specs en Repo")
 haz_pagos = (w_get('con_pagos').lower() == 'true')
 
 specs_local = (w_get('specs_local') == 'true')
-at_specs = default_path if specs_local else f"{app_abfss}/specs"
+at_specs = default_path if specs_local else f"{app_path}/specs"
 gold_container = app_resourcer.get_storage_client(None, 'gold')
 
 w_stub = (w_get('workflow_stub').lower() == 'true')
@@ -95,48 +100,9 @@ app_resourcer.set_dbks_permissions(dlk_permissions)
 
 # COMMAND ----------
 
-(self, url_type, resource, container, app_abfss) = app_resourcer, 'abfss', 'storage', 'gold', True
-if  url_type is None:
-    raise Exception("URL_TYPE is required")
-
-elif url_type == 'abfss':
-    account = self.config.get(resource, resource)
-    container = container or '{container}'
-    path_arg = app_abfss or False  # logical or string. 
-    
-    if isinstance(path_arg, (str, Path)): 
-        has_path = True
-        app_abfss = path_arg
-    elif isinstance(path_arg, bool): 
-        has_path = path_arg 
-        app_abfss = self.config.get('app_abfss', None)
-    
-    the_path = f"abfss://{container}@{account}.dfs.core.windows.net"
-    if has_path: 
-        the_path += f"/{app_abfss}"
-
-    print(f"""
-Path: {the_path}
-Account: {account}
-Container: {container}
-app_abfss: {app_abfss}
-""")
-self.config
-
-# COMMAND ----------
-
-a_dir = "abfss://gold@stlakehyliaqas.dfs.core.windows.net"
-#dirfiles_df(a_dir)
-dbutils.fs.rm(f"{a_dir}/abfss:/", recurse=True)
-
-# COMMAND ----------
-
 # MAGIC %md
-# MAGIC ## Cuentas
-
-# COMMAND ----------
-
-# MAGIC %md
+# MAGIC # Cuentas  
+# MAGIC
 # MAGIC Se tienen que transformar los tipos de cuenta de acuerdo a los siguientes esquema: 
 # MAGIC
 # MAGIC ## Para Fiserv
@@ -145,20 +111,20 @@ dbutils.fs.rm(f"{a_dir}/abfss:/", recurse=True)
 # MAGIC | Clave | Descripción                  |
 # MAGIC |-------|------------------------------|
 # MAGIC | D     | DDA/current account          
-# MAGIC | M   | Mortgage
-# MAGIC | H   | Home Equity Line of Credit (HELOC)
-# MAGIC | S   | Savings
-# MAGIC | C   | Credit card
-# MAGIC | LU  | Unsecured Loan
-# MAGIC | LA |  Automobile Loan
-# MAGIC | LS | Secured Loan (other than auto/mortgage)
-# MAGIC | UC | Unsecured Line of Credit
-# MAGIC | SC | Secured Line of Credit (other than HELOC)
-# MAGIC | MM | Money market
-# MAGIC | T  | Treasury
-# MAGIC | Z  | Certificate of deposit
-# MAGIC | B  | Brokerage
-# MAGIC | O  | Other Deposit Accounts (Annuity, Life Insurance, and so on)
+# MAGIC | M     | Mortgage
+# MAGIC | H     | Home Equity Line of Credit (HELOC)
+# MAGIC | S     | Savings
+# MAGIC | C     | Credit card
+# MAGIC | LU    | Unsecured Loan
+# MAGIC | LA    |  Automobile Loan
+# MAGIC | LS    | Secured Loan (other than auto/mortgage)
+# MAGIC | UC    | Unsecured Line of Credit
+# MAGIC | SC    | Secured Line of Credit (other than HELOC)
+# MAGIC | MM    | Money market
+# MAGIC | T     | Treasury
+# MAGIC | Z     | Certificate of deposit
+# MAGIC | B     | Brokerage
+# MAGIC | O     | Other Deposit Accounts (Annuity, Life Insurance, and so on)
 # MAGIC
 # MAGIC ## Accounts Tiene  
 # MAGIC Los siguientes tipos de productos se obtienen de la tabla de `current_account` como sigue: 
@@ -183,16 +149,12 @@ dbutils.fs.rm(f"{a_dir}/abfss:/", recurse=True)
 
 # COMMAND ----------
 
-
 es_ligera = F.col('ProductID').isin(['EPC_TA_N2', 'EPC_TA_MA1'])
 
-fiserv_transform = (lambda accs_df: accs_df
+accounts_transform = (lambda accs_df: accs_df
     .withColumnRenamed('ID', 'BorrowerID')
     .filter(es_ligera)
-    .withColumn('Type', F.when(es_ligera, 'D').otherwise(F.col('ProductID'))))
-
-# COMMAND ----------
-
+    .withColumn('Type', F.when(es_ligera, 'D').otherwise('ProductID')))
 
 
 # COMMAND ----------
@@ -206,9 +168,10 @@ else:
     b_blob = gold_container.get_blob_client(f"{at_specs}/accounts_specs_latest.feather")
     b_data = b_blob.download_blob()
     b_strm = BytesIO()
-    b_data.read_into(b_strm)
+    b_data.readinto(b_strm)
     b_strm.seek(0)
-    accounts_specs = pd.read_feather(b_strm)
+    accounts_specs = (pd.read_feather(b_strm)
+        .rename(columns=falcon_rename))
 
 accounts_specs.loc[1, 'column'] = 'modelSTUB' if w_stub else 'RBTRAN'
 
@@ -225,13 +188,10 @@ accounts_loader = falcon_builder.get_loader(accounts_specs, 'fixed-width')
 accounts_onecol = (F.concat(*accounts_specs['name'].values)
     .alias(ais_name))
 
-accounts_tbl = app_resourcer.get_resource_url('abfss', 'storage',
-    container='bronze', app_abfss=dbks_tables['accounts'])  # Tiene que ser Current Account. 
-
-accounts_0 = fiserv_transform(EpicDF(spark, accounts_tbl))
+accounts_0 = accounts_transform(EpicDF(spark, dbks_tables['accounts']))
 
 accounts_1 = (accounts_0
-    .select_plus(accounts_extract['gld_cx_collections_loans'])
+    .select_plus(accounts_extract['accounts'])
     .with_column_plus(accounts_extract['_val'])
     .with_column_plus(accounts_extract['None']))
 
@@ -266,43 +226,52 @@ accounts_3.save_as_file(
 # COMMAND ----------
 
 
-mod_columns = {
-    "user_first_name": F.col("first_name"),
-    "user_first_last_name": F.col("last_name"), 
-    "user_second_last_name": F.col("last_name2"), 
-    "sap_client_id": F.col("client_id"),
-    "user_phone_number": F.col("phone_number"),
-    "user_email": F.col("current_email_address"),
-    "fad_birth_date": F.col("birth_date"),
-    "fad_birth_cntry": F.col("birth_place_name"), 
-    "user_neighborhood": F.col("addr_district"), 
-    "fad_gender": F.col("person_gender"), 
-    "fad_state": F.col("region"), 
-    'user_rfc': F.col("person_rfc"), 
-    "fad_addr_1": F.concat_ws(" ", "addr_street", "addr_external_number")}
+agg_one = lambda cc: F.any_value(cc).alias(cc)
+    
+def one_customers(df_0): 
+    first_cols = pipe(df_0.columns, 
+        partial2(remove, ϱ('startswith', ('client_id', 'ben_', 'kyc_')), ...), 
+        map_z(agg_one))
+    df_1 = df_0.groupBy('client_id').agg(*first_cols)
+    return df_1
 
-customers_kyc = (EpicDF(spark, "qas.star_schema.dim_client")
-    .select('client_id', 'kyc_id', 'kyc_answer')
-    .filter(F.col('kyc_id').isin(['OCCUPATION', 'SOURCEOFINCOME']))
-    .groupBy('client_id').pivot('kyc_id').agg({'kyc_answer': 'first'})
-    .withColumnsRenamed({
-        'client_id': 'sap_client_id', 
-        'OCCUPATION': 'kyc_occupation', 
-        'SOURCEOFINCOME': 'kyc_src_income'}))
+def x_customers(df_0): 
+    kyc_cols = {'OCCUPATION': 'x_occupation', 
+            'SOURCEOFINCOME': 'x_src_income'}
+    kyc_df = (df_0
+        .select('client_id', 'kyc_id', 'kyc_answer')
+        .groupBy('client_id')
+        .pivot('kyc_id', list(kyc_cols.keys()))
+        .agg(F.first('kyc_answer'))
+        .withColumnsRenamed(kyc_cols))
+    df_1 = (df_0
+        .withColumn('x_address', F.concat_ws(" ", "addr_street", "addr_external_number"))
+        .select('client_id', 'x_address')
+        .groupBy('client_id').agg(agg_one('x_address'))
+        .join(kyc_df, 'client_id', how='left'))
+    return df_1
 
-customers_fix = (EpicDF(spark, "qas.star_schema.dim_client")
-    .select_plus(mod_columns)
-    .distinct()
-    .join(customers_kyc, 'sap_client_id', how='left'))
 
-customers_fix.display()
+# COMMAND ----------
+
 
 
 # COMMAND ----------
 
 cust_time = get_time()
-customers_specs = (pd.read_feather(ref_path/'customers_cols.feather')
-    .rename(columns=falcon_rename))
+
+if specs_local: 
+    customers_specs = (pd.read_feather(at_specs/'customers_cols.feather')
+        .rename(columns=falcon_rename))
+else: 
+    b_blob = gold_container.get_blob_client(f"{at_specs}/customers_specs_latest.feather")
+    b_data = b_blob.download_blob()
+    b_strm = BytesIO()
+    b_data.readinto(b_strm)
+    b_strm.seek(0)
+    customers_specs = (pd.read_feather(b_strm)
+        .rename(columns=falcon_rename))
+
 customers_specs.loc[1, 'column'] = 'modelSTUB' if w_stub else 'RBTRAN'
 
 cis_longname = '~'.join(row_name(rr) for _, rr in customers_specs.iterrows())
@@ -320,30 +289,26 @@ gender_df = EpicDF(spark, pd.DataFrame(
         columns=['gender', 'gender_new'], 
         data=[['H', 'M'], ['M', 'F']]))
 
-# customers_leg = EpicDF(spark, dbks_tables['gld_client_file'])
-# customers_legacy = (customers_leg
-#     .drop('bureau_req_ts', *filter(ϱ('startswith', 'ben_'), customers_leg.columns))
-#     .distinct())
+customers_0 = EpicDF(spark, dbks_tables['clients'])
 
-customers_2 = (EpicDF(customers_fix)
-    .with_column_plus(customers_extract['gld_client_file'])
+customers_1 = (one_customers(customers_0)
+    .join(x_customers(customers_0), on='client_id')
+    .with_column_plus(customers_extract['clients'])
+    .with_column_plus(customers_extract['clients_x'])
     .with_column_plus(customers_extract['_val'])
     .with_column_plus(customers_extract['None'])
-    .join(gender_df, on='gender')
-    .drop('gender')
+    .join(gender_df, on='gender').drop('gender')
     .withColumnRenamed('gender_new', 'gender'))
 
-customers_2.display()
-
-customers_3 = (customers_2
+customers_2 = (customers_1
     .select_plus(customers_loader))
 
-customers_4 = (customers_3
+customers_3 = (customers_2
     .select(customers_onecol)
     .prep_one_col(header_info=headfooters[('customer', 'header')],
                  trailer_info=headfooters[('customer', 'footer')]))
 
-customers_4.save_as_file(
+customers_3.save_as_file(
     f"{app_abfss}/reports/customers/{cust_time}.csv",
     f"{app_abfss}/reports/customers/tmp_delta",
     header=False, ignoreTrailingWhiteSpace=False, ignoreLeadingWhiteSpace=False)
@@ -357,7 +322,7 @@ customers_4.save_as_file(
 
 if haz_pagos:
     pymt_time = get_time()
-    payments_specs = (pd.read_feather(ref_path/'payments_cols.feather')
+    payments_specs = (pd.read_feather(at_specs/'payments_cols.feather')
             .rename(columns=falcon_rename))
     payments_specs.loc[1, 'column'] = 'modelSTUB' if w_stub else 'RBTRAN'
 
