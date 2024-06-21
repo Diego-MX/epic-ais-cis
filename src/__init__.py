@@ -10,7 +10,7 @@ dbks_tables = cfg.DBKS_MAPPING
 
 app_path = app_resourcer['storage-paths']['fraud']
 app_abfss = (app_resourcer.get_resource_url('abfss', 'storage',
-        container='gold', blob_path=blob_path))
+        container='gold', blob_path=app_path))
 
 
 falcon_types = {

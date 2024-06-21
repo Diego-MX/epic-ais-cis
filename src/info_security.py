@@ -13,8 +13,8 @@ from epic_py.tools import read_excel_table
 ref_path = "refs/Security Info.xlsx.lnk"    # pylint: disable=invalid-name
 cols_ref = (ref_path, 'Approach', 'fraud_cols')
 
-meta_cols = read_excel_table(*cols_ref).set_index('columna')   # pylint: disable=invalid-name
-col_types = meta_cols['tipo'].dropna()      # pylint: disable=unsubscriptable-object
+meta_cols = read_excel_table(*cols_ref).set_index('columna')  
+col_types = meta_cols['tipo'].dropna()    
 
 
 def prepare_excelref(xls_df: pd.DataFrame):
@@ -27,7 +27,7 @@ def prepare_excelref(xls_df: pd.DataFrame):
 
 if __name__ == '__main__':
     load_dotenv(override=True)
-    from src import blob_path, app_resourcer
+    from src import app_path, app_resourcer
     tmp_path = "refs/upload-specs"  # pylint: disable=invalid-name
 
     # table: sheet
@@ -42,8 +42,8 @@ if __name__ == '__main__':
                 .strftime("%Y-%m-%d_%H:%M"))
 
         ref_file = f"{tmp_path}/{a_ref}_cols.feather"
-        blob_0   = f"{blob_path}/specs/{a_ref}_specs_latest.feather"
-        blob_1   = f"{blob_path}/specs/{a_ref}_{now_str}.feather"
+        blob_0   = f"{app_path}/specs/{a_ref}_specs_latest.feather"
+        blob_1   = f"{app_path}/specs/{a_ref}_{now_str}.feather"
 
         pd_ref = read_excel_table(ref_path, sheet, a_ref)
         as_fthr = prepare_excelref(pd_ref)

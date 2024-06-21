@@ -30,15 +30,15 @@ from pathlib import Path
 from pytz import timezone as tz
 
 import pandas as pd
-from pyspark.sql import functions as F, Row, SparkSession   # pylint: disable=import-error
-from pyspark.dbutils import DBUtils     # pylint: disable=no-name-in-module,import-error
+from pyspark.sql import functions as F, Row, SparkSession 
+from pyspark.dbutils import DBUtils   
 from toolz import curry, pipe
 
 from epic_py.delta import EpicDF, EpicDataBuilder
 from epic_py.tools import dirfiles_df
 
-from src.head_foot import headfooters   # pylint: disable=ungrouped-imports
-from src import (app_agent, app_resourcer, blob_path,
+from src.head_foot import headfooters 
+from src import (app_agent, app_resourcer, app_abfss,
     dbks_tables, falcon_handler, falcon_rename)
 
 spark = SparkSession.builder.getOrCreate()
@@ -81,7 +81,7 @@ dbutils.widgets.text('specs_local', 'true', "Archivo Feather p. Specs en Repo")
 haz_pagos = (w_get('con_pagos').lower() == 'true')
 
 specs_local = (w_get('specs_local') == 'true')
-at_specs = default_path if specs_local else f"{blob_path}/specs"
+at_specs = default_path if specs_local else f"{app_abfss}/specs"
 gold_container = app_resourcer.get_storage_client(None, 'gold')
 
 w_stub = (w_get('workflow_stub').lower() == 'true')
@@ -95,31 +95,31 @@ app_resourcer.set_dbks_permissions(dlk_permissions)
 
 # COMMAND ----------
 
-(self, url_type, resource, container, blob_path) = app_resourcer, 'abfss', 'storage', 'gold', True
+(self, url_type, resource, container, app_abfss) = app_resourcer, 'abfss', 'storage', 'gold', True
 if  url_type is None:
     raise Exception("URL_TYPE is required")
 
 elif url_type == 'abfss':
     account = self.config.get(resource, resource)
     container = container or '{container}'
-    path_arg = blob_path or False  # logical or string. 
+    path_arg = app_abfss or False  # logical or string. 
     
     if isinstance(path_arg, (str, Path)): 
         has_path = True
-        blob_path = path_arg
+        app_abfss = path_arg
     elif isinstance(path_arg, bool): 
         has_path = path_arg 
-        blob_path = self.config.get('blob_path', None)
+        app_abfss = self.config.get('app_abfss', None)
     
     the_path = f"abfss://{container}@{account}.dfs.core.windows.net"
     if has_path: 
-        the_path += f"/{blob_path}"
+        the_path += f"/{app_abfss}"
 
     print(f"""
 Path: {the_path}
 Account: {account}
 Container: {container}
-Blob_path: {blob_path}
+app_abfss: {app_abfss}
 """)
 self.config
 
@@ -226,7 +226,7 @@ accounts_onecol = (F.concat(*accounts_specs['name'].values)
     .alias(ais_name))
 
 accounts_tbl = app_resourcer.get_resource_url('abfss', 'storage',
-    container='bronze', blob_path=dbks_tables['accounts'])  # Tiene que ser Current Account. 
+    container='bronze', app_abfss=dbks_tables['accounts'])  # Tiene que ser Current Account. 
 
 accounts_0 = fiserv_transform(EpicDF(spark, accounts_tbl))
 
@@ -244,8 +244,8 @@ accounts_3 = (accounts_2
                  trailer_info=headfooters[('account', 'footer')]))
 
 accounts_3.save_as_file(
-    f"{blob_path}/reports/accounts/{acct_time}.csv",
-    f"{blob_path}/reports/accounts/tmp_delta",
+    f"{app_abfss}/reports/accounts/{acct_time}.csv",
+    f"{app_abfss}/reports/accounts/tmp_delta",
     header=False, ignoreTrailingWhiteSpace=False, ignoreLeadingWhiteSpace=False)
 
 # COMMAND ----------
@@ -344,8 +344,8 @@ customers_4 = (customers_3
                  trailer_info=headfooters[('customer', 'footer')]))
 
 customers_4.save_as_file(
-    f"{blob_path}/reports/customers/{cust_time}.csv",
-    f"{blob_path}/reports/customers/tmp_delta",
+    f"{app_abfss}/reports/customers/{cust_time}.csv",
+    f"{app_abfss}/reports/customers/tmp_delta",
     header=False, ignoreTrailingWhiteSpace=False, ignoreLeadingWhiteSpace=False)
 
 # COMMAND ----------
@@ -396,7 +396,7 @@ if haz_pagos:
 
 print("Filas AIS-post escritura")
 post_ais = (spark.read.format('csv')
-    .load(f"{blob_path}/reports/accounts/{cust_time}.csv"))
+    .load(f"{app_abfss}/reports/accounts/{cust_time}.csv"))
     
 (post_ais
     .select(F.length('_c0').alias('ais_longitud'))
@@ -408,7 +408,7 @@ post_ais = (spark.read.format('csv')
 
 print("Filas CIS-post escritura")
 post_cis = (spark.read.format('csv')
-    .load(f"{blob_path}/reports/customers/{cust_time}.csv"))
+    .load(f"{app_abfss}/reports/customers/{cust_time}.csv"))
 (post_cis
     .select(F.length('_c0').alias('cis_longitud'))
     .groupBy('cis_longitud')
@@ -422,7 +422,7 @@ post_cis = (spark.read.format('csv')
 
 # COMMAND ----------
 
-cis_path = f"{blob_path}/reports/customers/"
+cis_path = f"{app_abfss}/reports/customers/"
 print(f"""
 CIS Path:\t{cis_path}
 (horario UTC)"""[1:])
@@ -431,7 +431,7 @@ CIS Path:\t{cis_path}
 
 # COMMAND ----------
 
-ais_path = f"{blob_path}/reports/accounts/"
+ais_path = f"{app_abfss}/reports/accounts/"
 print(f"""
 AIS Path:\t{ais_path}
 (horario UTC)"""[1:])
