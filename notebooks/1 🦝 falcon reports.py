@@ -167,8 +167,13 @@ accounts_3.save_as_file(
 
 # COMMAND ----------
 
-print(f"accounts/{acct_time}.csv")
-accounts_3.display()
+A = dbutils.fs.ls(f"{blob_path}/reports/accounts/{acct_time}.csv")
+print(A)
+B = f"{blob_path}/reports/accounts/{acct_time}.csv"
+print(B)
+C = dbutils.fs.head(B)
+print(C)
+
 
 # COMMAND ----------
 
@@ -193,61 +198,88 @@ customers_extract = falcon_builder.get_extract(customers_specs, 'delta')
 customers_loader  = falcon_builder.get_loader(customers_specs, 'fixed-width')
 customers_onecol  = (F.concat(*customers_specs['name'].values)
     .alias(cis_name))
-print(customers_onecol)
+
 gender_df = spark.createDataFrame([
-    Row(gender='H', gender_new='M'), 
-    Row(gender='M', gender_new='F')])
+    Row(fad_gender='H', gender_new='M'), 
+    Row(fad_gender='M', gender_new='F')])
 
-kyc_df = spark.createDataFrame([
-    Row(kyc_occupation = "kyc_occupation")])
+customers_i = (EpicDF(spark,ENV+dbks_tables["client"])
+               .select(F.col("client_id"),
+                       F.col("kyc_id"),
+                       F.col("kyc_answer")
+                       ))
 
-customers_0 = EpicDF(spark, ENV+dbks_tables['client'])
+customers_i  = (customers_i
+                .groupby("client_id")
+                .pivot("kyc_id")
+                .agg(F.first("kyc_answer"))
+                .select(F.col("client_id"),
+                        F.col("OCCUPATION").alias("kyc_occupation"),
+                        F.col("SOURCEOFINCOME").alias("kyc_src_income")
+                        ))
 
-customers_ii = (spark.read.table("qas.star_schema.dim_client")
-        .select(F.col("client_id").alias("sap_client_id"),       
+customers_0 = (EpicDF(spark,ENV+dbks_tables["client"])
+                .drop("kyc_id")
+                .drop("kyc_answer")
+                ).distinct().join(customers_i,"client_id","inner")
+
+
+# customers_0.columns
+#customers_0.display() # <---
+
+customers_1 = (customers_0.select(F.col("client_id").alias("sap_client_id"),       
                 F.col("first_name").alias("user_first_name"),
                 F.col("last_name").alias("user_first_last_name"),       
                 F.col("last_name2").alias("user_second_last_name"),      
                 F.col("phone_number").alias("user_phone_number"),      
                 F.col("current_email_address").alias("user_email"),      
-                F.col("birth_date").alias("fad_birth_day"),        
+                F.col("birth_date").alias("fad_birth_date"),        
                 F.col("birth_place_name").alias("fad_birth_cntry"),   
                 F.col("addr_district").alias("user_neighborhood"),   
                 F.col("region").alias("fad_state"),
-                F.col("person_gender").alias("gender"),
-                F.concat_ws( " ","addr_street","addr_external_number").alias("fad_addr_1"))       
-        ).distinct()
+                F.col("person_rfc").alias("user_rfc"),
+                F.col("person_gender").alias("fad_gender"),
+                F.concat_ws( " ","addr_street","addr_external_number").alias("fad_addr_1"),
+                F.col("kyc_occupation"),
+                F.col("kyc_src_income"))       
+                ).distinct()
 
-customers_1= EpicDF(customers_ii
-    .drop('bureau_req_ts', *filter(ϱ('startswith', 'ben_'), customers_0.columns))
-    .distinct())
+# customers_1.columns
+#customers_1.display() # <---
 
-# customers_1.display() # <---
+# customers_1= EpicDF(customers_0
+#     .drop('bureau_req_ts', *filter(ϱ('startswith', 'ben_'), customers_0.columns))
+#     .distinct())
 
-print(customers_extract['gld_client_file'])
-
-customers_2 = EpicDF(customers_1)
-    # .with_column_plus(customers_extract['gld_client_file'])
-    # .with_column_plus(customers_extract['_val'])
-    # .with_column_plus(customers_extract['None'])
-    # .join(gender_df, on='person_gender')
-    # .drop('person_gender')
-    # .withColumnRenamed('gender_new', 'person_gender'))
+customers_2 = EpicDF(customers_1
+    .with_column_plus(customers_extract['gld_client_file'])
+    .with_column_plus(customers_extract['_val'])
+    .with_column_plus(customers_extract['None'])
+    .join(gender_df, on='fad_gender')
+    .drop('fad_gender')
+    .withColumnRenamed('gender_new', 'fad_gender'))
 
 # customers_2.display()
 
-# customers_3 = (customers_2
-#     .select_plus(customers_loader))
+customers_3 = (customers_2
+    .select_plus(customers_loader))
 
-# customers_4 = (customers_3
-#     .select(customers_onecol)
-#     .prep_one_col(header_info=headfooters[('customer', 'header')],
-#                  trailer_info=headfooters[('customer', 'footer')]))
+customers_4 = (customers_3
+    .select(customers_onecol)
+    .prep_one_col(header_info=headfooters[('customer', 'header')],
+                 trailer_info=headfooters[('customer', 'footer')]))
 
-# customers_4.save_as_file(
-#     f"{blob_path}/reports/customers/{cust_time}.csv",
-#     f"{blob_path}/reports/customers/tmp_delta",
-#     header=False, ignoreTrailingWhiteSpace=False, ignoreLeadingWhiteSpace=False)
+customers_4.save_as_file(
+    f"{blob_path}/reports/customers/{cust_time}.csv",
+    f"{blob_path}/reports/customers/tmp_delta",
+    header=False, ignoreTrailingWhiteSpace=False, ignoreLeadingWhiteSpace=False)
+
+# COMMAND ----------
+
+A = dbutils.fs.ls(f"{blob_path}/reports/customers/{cust_time}.csv")
+B = f"{blob_path}/reports/customers/{cust_time}.csv"
+C = dbutils.fs.head(B)
+print(C)
 
 # COMMAND ----------
 
@@ -298,22 +330,53 @@ if haz_pagos:
 print("Filas AIS-post escritura")
 post_ais = (spark.read.format('csv')
     .load(f"{blob_path}/reports/accounts/{cust_time}.csv"))
-(post_ais
+ais_inf= (post_ais
     .select(F.length('_c0').alias('ais_longitud'))
     .groupBy('ais_longitud')
-    .count()
-    .display())
+    .count())
+ais_inf.display()
 
 # COMMAND ----------
 
 print("Filas CIS-post escritura")
 post_cis = (spark.read.format('csv')
     .load(f"{blob_path}/reports/customers/{cust_time}.csv"))
-(post_cis
+cis_inf = (post_cis
     .select(F.length('_c0').alias('cis_longitud'))
     .groupBy('cis_longitud')
-    .count()
-    .display())
+    .count())
+cis_inf.display()
+
+# COMMAND ----------
+
+import matplotlib.pyplot as plt
+
+ais_cnts = ais_inf.collect()[0]["count"]
+ais_long = ais_inf.collect()[0]["ais_longitud"]
+cis_cnts = cis_inf.collect()[0]["count"]
+cis_long = cis_inf.collect()[0]["cis_longitud"]
+
+name = ["AIS","CIS"]
+count = [ais_cnts,cis_cnts]
+long = [ais_long,cis_long]
+color = ["blue","red"]
+
+name2 = []; name3 = []
+
+for i in range(0,len(name),1):
+    name2.append(name[i]+" - "+str(count[i]))
+    name3.append(name[i]+" - "+str(long[i]))
+    
+print(name2, name3)
+fig,ax = plt.subplots(1,2,figsize = (9,3),sharey = False)
+ax[0].bar(name,count,label = name2, color = color)
+ax[0].legend()
+print(dir(plt.grid()))
+ax[1].bar(name,long,label = name3,color = color)
+ax[1].legend()
+
+plt.show()
+
 
 # COMMAND ----------
 
