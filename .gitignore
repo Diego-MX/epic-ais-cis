@@ -1,9 +1,7 @@
 .env
-user_databricks.yml
 
 .vscode
 
 **__pycache__**
 **.pylintrc
 **.DS_Store**
-user_databricks.yml

@@ -34,11 +34,11 @@ def gh_epicpy(ref=None, tokenfile=None, typing=None, verbose=False):
         print(dumps(dumper))
     return
     
-def token_from_userfile(userfile=USER_FILE):
+def token_from_userfile(userfile=None):
     if not has_yaml: 
         pip_install('pyyaml')
-    
-    from yaml import safe_load         
+    from yaml import safe_load       
+    userfile = userfile or config.USER_FILE 
     with open(userfile, 'r') as _f:     # pylint: disable=unspecified-encoding
         tokener = safe_load(_f)
     spark = SparkSession.builder.getOrCreate()

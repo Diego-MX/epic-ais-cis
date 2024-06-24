@@ -19,11 +19,6 @@ deps.gh_epicpy('meetme-1',
 
 # COMMAND ----------
 
-# MAGIC %load_ext autoreload
-# MAGIC %autoreload 2
-
-# COMMAND ----------
-
 # pylint: disable=wrong-import-position
 # pylint: disable=wrong-import-order
 # pylint: disable=invalid-name
