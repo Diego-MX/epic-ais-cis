@@ -73,7 +73,7 @@ default_path = "../refs/upload-specs"
 
 dbutils.widgets.text('con_pagos', 'false', "Ejecutar PIS-Payment Info. Sec.")
 dbutils.widgets.text('workflow_stub', 'true', "Nombre de workflow como campo en reportes.")
-dbutils.widgets.text('specs_local', 'false', "Archivo Feather p. Specs en Repo")
+dbutils.widgets.text('specs_local', 'true', "Archivo Feather p. Specs en Repo")
 
 
 # COMMAND ----------
