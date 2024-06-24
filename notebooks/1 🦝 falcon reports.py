@@ -73,9 +73,8 @@ default_path = "../refs/upload-specs"
 
 dbutils.widgets.text('con_pagos', 'false', "Ejecutar PIS-Payment Info. Sec.")
 dbutils.widgets.text('workflow_stub', 'true', "Nombre de workflow como campo en reportes.")
-dbutils.widgets.text('specs_local', 'true', "Archivo Feather p. Specs en Repo")
+dbutils.widgets.text('specs_local', 'false', "Archivo Feather p. Specs en Repo")
 
-ENV = cfg.ENV+"."
 
 # COMMAND ----------
 
@@ -158,7 +157,7 @@ accounts_transform = (lambda accs_df: accs_df
 acct_time = get_time()
 
 if specs_local: 
-    accounts_specs = (pd.read_feather(at_specs/'accounts_cols.feather')
+    accounts_specs = (pd.read_feather(f"{at_specs}/accounts_cols.feather")
         .rename(columns=falcon_rename))
 else: 
     b_blob = gold_container.get_blob_client(f"{at_specs}/accounts_specs_latest.feather")
@@ -221,11 +220,12 @@ accounts_3.save_as_file(
 # MAGIC * Un filtrado de datos repetidos debido al desmadre que se hizo con `kyc`.  
 
 # COMMAND ----------
+
 gender_df = spark.createDataFrame([
     Row(fad_gender='H', gender_new='M'), 
     Row(fad_gender='M', gender_new='F')])
 
-customers_i = (EpicDF(spark,ENV+dbks_tables["client"])
+customers_i = (EpicDF(spark, dbks_tables["clients"])
                .select(F.col("client_id"),
                        F.col("kyc_id"),
                        F.col("kyc_answer")
@@ -240,7 +240,7 @@ customers_i  = (customers_i
                         F.col("SOURCEOFINCOME").alias("kyc_src_income")
                         ))
 
-customers_0 = (EpicDF(spark,ENV+dbks_tables["client"])
+customers_0 = (EpicDF(spark, dbks_tables["clients"])
                 .drop("kyc_id")
                 .drop("kyc_answer")
                 ).distinct().join(customers_i,"client_id","inner")
@@ -261,7 +261,9 @@ customers_1 = (customers_0.select(F.col("client_id").alias("sap_client_id"),
                 F.col("kyc_occupation"),
                 F.col("kyc_src_income"))       
                 ).distinct()
+
 # COMMAND ----------
+
 agg_one = lambda cc: F.any_value(cc).alias(cc)
     
 def one_customers(df_0): 
@@ -293,7 +295,7 @@ def x_customers(df_0):
 cust_time = get_time()
 
 if specs_local: 
-    customers_specs = (pd.read_feather(at_specs/'customers_cols.feather')
+    customers_specs = (pd.read_feather(f"{at_specs}/customers_cols.feather")
         .rename(columns=falcon_rename))
 else: 
     b_blob = gold_container.get_blob_client(f"{at_specs}/customers_specs_latest.feather")
@@ -312,6 +314,11 @@ cis_name = cis_longname if COL_DEBUG else 'cis-columna-fixed-width'
 name_onecol = '~'.join(row_name(rr)       # pylint: disable=invalid-name
     for _, rr in customers_specs.iterrows())
 
+gender_df_2 = spark.createDataFrame([
+    Row(gender='H', gender_new='M'), 
+    Row(gender='M', gender_new='F')])
+
+
 customers_extract = falcon_builder.get_extract(customers_specs, 'delta')
 customers_loader  = falcon_builder.get_loader(customers_specs, 'fixed-width')
 customers_onecol  = (F.concat(*customers_specs['name'].values)
@@ -326,7 +333,7 @@ customers_1 = (one_customers(customers_0)
     .with_column_plus(customers_extract['clients_x'])
     .with_column_plus(customers_extract['_val'])
     .with_column_plus(customers_extract['None'])
-    .join(gender_df, on='gender').drop('gender')
+    .join(gender_df_2, on='gender').drop('gender')
     .withColumnRenamed('gender_new', 'gender'))
 
 customers_2 = (customers_1
@@ -392,10 +399,11 @@ print("Filas AIS-post escritura")
 post_ais = (spark.read.format('csv')
     .load(f"{app_abfss}/reports/accounts/{cust_time}.csv"))
     
-(post_ais
+ais_inf = (post_ais
     .select(F.length('_c0').alias('ais_longitud'))
     .groupBy('ais_longitud')
     .count())
+
 ais_inf.display()
 
 # COMMAND ----------
@@ -403,7 +411,7 @@ ais_inf.display()
 print("Filas CIS-post escritura")
 post_cis = (spark.read.format('csv')
     .load(f"{app_abfss}/reports/customers/{cust_time}.csv"))
-(post_cis
+cis_inf = (post_cis
     .select(F.length('_c0').alias('cis_longitud'))
     .groupBy('cis_longitud')
     .count())

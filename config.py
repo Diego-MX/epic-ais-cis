@@ -66,7 +66,7 @@ AZURE_RESOURCES = {
 } } }
 
 DBKS_MAPPING = { # Key from Excel Refs, Value on DBKS metastore.
-    'client'  : 'star_schema.dim_client',  # 
+    'clients' : 'star_schema.dim_client',  # 
     'accounts': 'star_schema.current_account_x'}
 
 ENV = os.getenv('ENV_TYPE')
