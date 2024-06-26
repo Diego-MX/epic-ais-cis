@@ -10,6 +10,7 @@ from pkg_resources import working_set
 from pyspark.dbutils import DBUtils     # pylint: disable=no-name-in-module
 from pyspark.sql import SparkSession  
 import config 
+
 # from config import REQS_FILE, V_TYPING, EPICPY_REF, USER_FILE
 
 has_yaml = 'yaml' in working_set.by_key
@@ -34,7 +35,7 @@ def gh_epicpy(ref=None, tokenfile=None, typing=None, verbose=False):
         print(dumps(dumper))
     return
     
-def token_from_userfile(userfile=USER_FILE):
+def token_from_userfile(userfile=config.USER_FILE):
     if not has_yaml: 
         pip_install('pyyaml')
     

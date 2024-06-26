@@ -1,6 +1,6 @@
 
-user : 'nombre.a@bineo.com'
+user : 'juan.v@bineo.com'
 
-dbks_scope : 'user-nombre-apellido'  
+dbks_scope : 'user-juan-villalpando'  
 
 dbks_token  : 'github-access-token'

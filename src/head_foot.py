@@ -3,7 +3,6 @@ Módulo para generar FlatFileInfo a modo de pruebas.
 """
 from epic_py.delta import FlatFileInfo
 
-
 TEST_INFO = False
 
 meta_info = dict(option=True, vendor='fiserv')
