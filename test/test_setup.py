@@ -72,17 +72,9 @@ class Test:
     def get_storage_client(self, account = None,container = None,info = False):
         client = self.get_principal()
         account = account or cfg.AZURE_RESOURCES[cfg.ENV]["storage"]
-        print(account)
-        the_url = AzureResourcer.get_resource_url('blob', account)
-        print(the_url)
+        the_url = "https://stlakehyliaqas.blob.core.windows.net"
         b_service = BlobServiceClient(the_url, client)
-        print(b_service)
-        # if container: 
-        #     return b_service.get_container_client(container)
-        # if info:  # pylint: disable=no-else-return
-        #     return b_service.get_account_information()
-        # else:  
-        #     return b_service
+        return b_service.get_container_client(container)
 
     def test_principal(self): # Revisión de premisos para la credencial obtenida
         try: 
@@ -139,15 +131,21 @@ class Test:
         if folder == []:
             assert 1 == 2,"No hay archivos en la carpeta"
             return
+        
+        a = 0
 
         for file in folder:
             if file.name.endswith("cols.feather"):
+                a += 1
                 assert file.name.endswith('cols.feather'), "No es un archivo feather!"
+        
+        if a ==0:
+            assert a != 0, "No hay archivos feather en la carpeta" 
 
         return 
 
     def test_blob_content(self): # Revisa que el feather contenga información
-        container = app_resourcer.get_storage_client(None,"gold")
+        container =self.get_storage_client(None,"gold")
         folder = dbutils.fs.ls(app_abfss+"/specs") # ruta que apunta a la carpeta specs 
         # folder = dbutils.fs.ls(app_abfss) # ruta que apunta a la carpeta fraud-prevention, las dos son validas 
         
@@ -160,7 +158,7 @@ class Test:
     
     def test_blob_exist(self): # Constata que el blob exista
         folder = dbutils.fs.ls(app_abfss+"/specs")
-        container = app_resourcer.get_storage_client(None,"gold")
+        container = self.get_storage_client(None,"gold")
 
         for file in folder:
             if file.name.endswith("latest.feather"):
@@ -171,7 +169,7 @@ class Test:
 
     def test_feather_col(self):
         folder = dbutils.fs.ls(app_abfss+"/specs")
-        container = app_resourcer.get_storage_client(None,"gold")
+        container = self.get_storage_client(None,"gold")
         D_feathers = {}; D_tbl = {}
 
         # Extracción del nombre de las columnas de las tablas. Vienen de DBCKS
@@ -229,6 +227,6 @@ class Test:
 
 
 
-Test = Test()
-Activo = Test.get_storage_client()
-print(Activo)
+# Test = Test()
+# Activo = Test.test_feather_exist()
+# print(Activo)

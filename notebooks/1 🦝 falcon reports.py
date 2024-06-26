@@ -97,14 +97,6 @@ app_resourcer.set_dbks_permissions(dlk_permissions)
 
 # COMMAND ----------
 
-gold_container
-type(gold_container)
-print(app_path)
-at_specs
-# dbutils.fs.ls("ops/fraud-prevention/specs")
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC # Cuentas  
 # MAGIC
@@ -216,10 +208,6 @@ accounts_3.save_as_file(
 
 # COMMAND ----------
 
-accounts_loader
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC ## Clientes
 # MAGIC
@@ -232,49 +220,6 @@ accounts_loader
 # MAGIC * Mapeo de columnas `prep_columns`.  
 # MAGIC * Un increíble _pivoteo_ de columnas de `kyc`.  
 # MAGIC * Un filtrado de datos repetidos debido al desmadre que se hizo con `kyc`.  
-
-# COMMAND ----------
-
-# gender_df = spark.createDataFrame([
-#     Row(fad_gender='H', gender_new='M'), 
-#     Row(fad_gender='M', gender_new='F')])
-
-# customers_i = (EpicDF(spark, dbks_tables["clients"])
-#                .select(F.col("client_id"),
-#                        F.col("kyc_id"),
-#                        F.col("kyc_answer")
-#                        ))
-
-# customers_i  = (customers_i
-#                 .groupby("client_id")
-#                 .pivot("kyc_id")
-#                 .agg(F.first("kyc_answer"))
-#                 .select(F.col("client_id"),
-#                         F.col("OCCUPATION").alias("kyc_occupation"),
-#                         F.col("SOURCEOFINCOME").alias("kyc_src_income")
-#                         ))
-
-# customers_0 = (EpicDF(spark, dbks_tables["clients"])
-#                 .drop("kyc_id")
-#                 .drop("kyc_answer")
-#                 ).distinct().join(customers_i,"client_id","inner")
-
-# customers_1 = (customers_0.select(F.col("client_id").alias("sap_client_id"),       
-#                 F.col("first_name").alias("user_first_name"),
-#                 F.col("last_name").alias("user_first_last_name"),       
-#                 F.col("last_name2").alias("user_second_last_name"),      
-#                 F.col("phone_number").alias("user_phone_number"),      
-#                 F.col("current_email_address").alias("user_email"),      
-#                 F.col("birth_date").alias("fad_birth_date"),        
-#                 F.col("birth_place_name").alias("fad_birth_cntry"),   
-#                 F.col("addr_district").alias("user_neighborhood"),   
-#                 F.col("region").alias("fad_state"),
-#                 F.col("person_rfc").alias("user_rfc"),
-#                 F.col("person_gender").alias("fad_gender"),
-#                 F.concat_ws( " ","addr_street","addr_external_number").alias("fad_addr_1"),
-#                 F.col("kyc_occupation"),
-#                 F.col("kyc_src_income"))       
-#                 ).distinct()
 
 # COMMAND ----------
 
