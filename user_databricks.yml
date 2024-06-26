@@ -1,6 +1,6 @@
 
-user : 'diego.v@bineo.com'
+user : 'juan.v@bineo.com'
 
-dbks_scope : 'user-diego-villamil'  
+dbks_scope : 'user-juan-villalpando'  
 
 dbks_token  : 'github-access-token'

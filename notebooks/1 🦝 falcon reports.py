@@ -38,6 +38,8 @@ from toolz.curried import map as map_z
 from epic_py.delta import EpicDF, EpicDataBuilder, TypeHandler
 from epic_py.tools import dirfiles_df, partial2
 
+import matplotlib.pyplot as plt
+
 from src import (app_agent, app_resourcer, app_abfss, app_path,
     dbks_tables, falcon_types, falcon_rename)
 from src.head_foot import headfooters   # pylint: disable=ungrouped-imports
@@ -92,6 +94,14 @@ datalake = app_resourcer['storage']
 dlk_permissions = app_agent.prep_dbks_permissions(datalake, 'gen2')
 app_resourcer.set_dbks_permissions(dlk_permissions)
 
+
+# COMMAND ----------
+
+gold_container
+type(gold_container)
+print(app_path)
+at_specs
+# dbutils.fs.ls("ops/fraud-prevention/specs")
 
 # COMMAND ----------
 
@@ -206,6 +216,10 @@ accounts_3.save_as_file(
 
 # COMMAND ----------
 
+accounts_loader
+
+# COMMAND ----------
+
 # MAGIC %md
 # MAGIC ## Clientes
 # MAGIC
@@ -221,46 +235,46 @@ accounts_3.save_as_file(
 
 # COMMAND ----------
 
-gender_df = spark.createDataFrame([
-    Row(fad_gender='H', gender_new='M'), 
-    Row(fad_gender='M', gender_new='F')])
+# gender_df = spark.createDataFrame([
+#     Row(fad_gender='H', gender_new='M'), 
+#     Row(fad_gender='M', gender_new='F')])
 
-customers_i = (EpicDF(spark, dbks_tables["clients"])
-               .select(F.col("client_id"),
-                       F.col("kyc_id"),
-                       F.col("kyc_answer")
-                       ))
+# customers_i = (EpicDF(spark, dbks_tables["clients"])
+#                .select(F.col("client_id"),
+#                        F.col("kyc_id"),
+#                        F.col("kyc_answer")
+#                        ))
 
-customers_i  = (customers_i
-                .groupby("client_id")
-                .pivot("kyc_id")
-                .agg(F.first("kyc_answer"))
-                .select(F.col("client_id"),
-                        F.col("OCCUPATION").alias("kyc_occupation"),
-                        F.col("SOURCEOFINCOME").alias("kyc_src_income")
-                        ))
+# customers_i  = (customers_i
+#                 .groupby("client_id")
+#                 .pivot("kyc_id")
+#                 .agg(F.first("kyc_answer"))
+#                 .select(F.col("client_id"),
+#                         F.col("OCCUPATION").alias("kyc_occupation"),
+#                         F.col("SOURCEOFINCOME").alias("kyc_src_income")
+#                         ))
 
-customers_0 = (EpicDF(spark, dbks_tables["clients"])
-                .drop("kyc_id")
-                .drop("kyc_answer")
-                ).distinct().join(customers_i,"client_id","inner")
+# customers_0 = (EpicDF(spark, dbks_tables["clients"])
+#                 .drop("kyc_id")
+#                 .drop("kyc_answer")
+#                 ).distinct().join(customers_i,"client_id","inner")
 
-customers_1 = (customers_0.select(F.col("client_id").alias("sap_client_id"),       
-                F.col("first_name").alias("user_first_name"),
-                F.col("last_name").alias("user_first_last_name"),       
-                F.col("last_name2").alias("user_second_last_name"),      
-                F.col("phone_number").alias("user_phone_number"),      
-                F.col("current_email_address").alias("user_email"),      
-                F.col("birth_date").alias("fad_birth_date"),        
-                F.col("birth_place_name").alias("fad_birth_cntry"),   
-                F.col("addr_district").alias("user_neighborhood"),   
-                F.col("region").alias("fad_state"),
-                F.col("person_rfc").alias("user_rfc"),
-                F.col("person_gender").alias("fad_gender"),
-                F.concat_ws( " ","addr_street","addr_external_number").alias("fad_addr_1"),
-                F.col("kyc_occupation"),
-                F.col("kyc_src_income"))       
-                ).distinct()
+# customers_1 = (customers_0.select(F.col("client_id").alias("sap_client_id"),       
+#                 F.col("first_name").alias("user_first_name"),
+#                 F.col("last_name").alias("user_first_last_name"),       
+#                 F.col("last_name2").alias("user_second_last_name"),      
+#                 F.col("phone_number").alias("user_phone_number"),      
+#                 F.col("current_email_address").alias("user_email"),      
+#                 F.col("birth_date").alias("fad_birth_date"),        
+#                 F.col("birth_place_name").alias("fad_birth_cntry"),   
+#                 F.col("addr_district").alias("user_neighborhood"),   
+#                 F.col("region").alias("fad_state"),
+#                 F.col("person_rfc").alias("user_rfc"),
+#                 F.col("person_gender").alias("fad_gender"),
+#                 F.concat_ws( " ","addr_street","addr_external_number").alias("fad_addr_1"),
+#                 F.col("kyc_occupation"),
+#                 F.col("kyc_src_income"))       
+#                 ).distinct()
 
 # COMMAND ----------
 
@@ -318,12 +332,10 @@ gender_df_2 = spark.createDataFrame([
     Row(gender='H', gender_new='M'), 
     Row(gender='M', gender_new='F')])
 
-
 customers_extract = falcon_builder.get_extract(customers_specs, 'delta')
 customers_loader  = falcon_builder.get_loader(customers_specs, 'fixed-width')
 customers_onecol  = (F.concat(*customers_specs['name'].values)
     .alias(cis_name))
-
 
 customers_0 = EpicDF(spark, dbks_tables['clients'])
 
@@ -419,8 +431,6 @@ cis_inf.display()
 
 # COMMAND ----------
 
-import matplotlib.pyplot as plt
-
 ais_cnts = ais_inf.collect()[0]["count"]
 ais_long = ais_inf.collect()[0]["ais_longitud"]
 cis_cnts = cis_inf.collect()[0]["count"]
@@ -437,11 +447,9 @@ for i in range(0,len(name),1):
     name2.append(name[i]+" - "+str(count[i]))
     name3.append(name[i]+" - "+str(long[i]))
     
-print(name2, name3)
 fig,ax = plt.subplots(1,2,figsize = (9,3),sharey = False)
 ax[0].bar(name,count,label = name2, color = color)
 ax[0].legend()
-print(dir(plt.grid()))
 ax[1].bar(name,long,label = name3,color = color)
 ax[1].legend()
 
