@@ -154,6 +154,10 @@ accounts_transform = (lambda accs_df: accs_df
 
 # COMMAND ----------
 
+dbks_tables['accounts']
+
+# COMMAND ----------
+
 acct_time = get_time()
 
 if specs_local: 
