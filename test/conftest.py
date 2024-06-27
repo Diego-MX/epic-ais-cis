@@ -1,5 +1,5 @@
 from sys import dont_write_bytecode
-import dependencies as deps
+import dbks_dependencies as deps
 import config as cfg
 
 def pytest_configure():
