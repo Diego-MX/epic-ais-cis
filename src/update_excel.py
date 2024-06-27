@@ -2,7 +2,7 @@ from pyspark.sql import functions as F, Row, SparkSession
 from pyspark.dbutils import DBUtils 
 import pandas as pd
 
-import dependencies as deps
+import dbks_dependencies as deps
 
 deps.pip_install("platform")
 import requests
