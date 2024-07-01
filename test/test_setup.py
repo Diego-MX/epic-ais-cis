@@ -28,14 +28,6 @@ import pytest
 
 import config as cfg
 
-# from src import (dbks_tables, app_path, app_abfss)
-
-# import dbks_dependencies as dbks_deps
-# dbks_deps.gh_epicpy('meetme-1',
-#     tokenfile='../user_databricks.yml', typing=False, verbose=True) # <----
-# from epic_py.delta import EpicDF, EpicDataBuilder # <----
-# from epic_py.platform import AzureResourcer # <----
-
 spark = SparkSession.builder.getOrCreate()
 dbutils = DBUtils(spark)
 dbks_tables = {kk: f"{cfg.ENV}.{tt}"
@@ -110,20 +102,20 @@ class Test:
                 assert scope.name==obj_scope,"El scope no existe"
 
     def test_token_dbks(self):
-        # tokener = self.get_user()
-        # token = dbutils.secrets.get(scope=tokener['dbks_scope'], key=tokener['dbks_token'])
+        tokener = self.get_user()
+        token = dbutils.secrets.get(scope=tokener['dbks_scope'], key=tokener['dbks_token'])
 
-        # the_keys = {
-        #     'url'  : 'github.com/Bineo2/data-python-tools.git', 
-        #     'token': token, 
-        #     'ref'  : "meetme-1"
-        # }
+        keys = {
+            'url'  : 'github.com/Bineo2/data-python-tools.git', 
+            'token': token, 
+            'ref'  : "meetme-1"
+        }
 
-        # argument = "git+https://{token}@{url}@{ref}".format(**the_keys)
-        # assert check_call(['pip', 'install', argument])==0,"Fallo el token"
-        import dbks_dependencies as dbks_deps
-        dbks_deps.gh_epicpy('meetme-1',
-            tokenfile='../user_databricks.json', typing=False, verbose=True)
+        argument = "git+https://{token}@{url}@{ref}".format(**keys)
+        assert check_call(['pip', 'install', argument])==0,"Fallo el token"
+
+        # import dbks_dependencies as dbks_deps
+        # dbks_deps.gh_epicpy('meetme-1',tokenfile='../user_databricks.json', typing=False, verbose=True)
 
     def test_principal(self):
         """Revisión de premisos para la credencial obtenida"""
@@ -134,8 +126,6 @@ class Test:
             assert isinstance(token_test, AccessToken), "Service Principal or Azure Scope Fail."
         except ClientAuthenticationError as e:
             pytest.fail(f"Service Principal cant authenticate: {e}")
-        # except Exception as e:
-        #     pytest.fail(f"Error with Service Principal's token: {e}")
 
     def test_keyvault(self):
         """ Comprueba que la keyvault funcione correctamente - 
@@ -145,11 +135,11 @@ class Test:
         principal_credential = self.get_principal()
         key_client = SecretClient(vault_url,principal_credential)
         d_agent = cfg.SETUP_KEYS[cfg.ENV]["service-principal"]
-        vault = d_agent["tenant_id"]
+        secret_vault = d_agent["tenant_id"]
 
         try:
-            assert isinstance(key_client.get_secret(vault),
-                KeyVaultSecret),f"A secret with {vault} was not found in this key vault"
+            assert isinstance(key_client.get_secret(secret_vault),
+                KeyVaultSecret),f"A secret with {secret_vault} was not found in this key vault"
 
         except ResourceNotFoundError as e:
             pytest.fail(f"SecretClient OK, Secret doesnt exist [{keyvault}, {vault}]: {e}")
@@ -231,6 +221,7 @@ class Test:
         assert columns_feather!=[],"No se encontro el feather paymonts"
 
 
-Pruebas = Test()
-ACTIVO = Pruebas.test_token_dbks()#test_feather_exist()
-print(ACTIVO)
+# Pruebas = Test()
+# # ACTIVO = Pruebas.test_token_dbks()#test_feather_exist()
+# ACTIVO = Pruebas.test_keyvault()
+# print(ACTIVO)
