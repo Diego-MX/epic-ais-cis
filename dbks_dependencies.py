@@ -8,7 +8,8 @@ from json import dumps
 from subprocess import check_call
 from pkg_resources import working_set
 from pyspark.dbutils import DBUtils     # pylint: disable=no-name-in-module
-from pyspark.sql import SparkSession  
+from pyspark.sql import SparkSession 
+import json 
 import config 
 
 # from config import REQS_FILE, V_TYPING, EPICPY_REF, USER_FILE
@@ -36,12 +37,9 @@ def gh_epicpy(ref=None, tokenfile=None, typing=None, verbose=False):
     return
     
 def token_from_userfile(userfile=config.USER_FILE):
-    if not has_yaml: 
-        pip_install('pyyaml')
-    
-    from yaml import safe_load         
-    with open(userfile, 'r') as _f:     # pylint: disable=unspecified-encoding
-        tokener = safe_load(_f)
+    with open(userfile, 'r',encoding = "utf-8") as file:
+        tokener = json.load(file)
+
     spark = SparkSession.builder.getOrCreate()
     dbutils = DBUtils(spark)
 
@@ -50,3 +48,5 @@ def token_from_userfile(userfile=config.USER_FILE):
 def pip_install(*args): 
     check_call(['pip', 'install', *args])
     return
+
+

@@ -15,7 +15,7 @@
 
 import dbks_dependencies as deps
 deps.gh_epicpy('meetme-1',  
-    tokenfile='../user_databricks.yml', typing=False, verbose=True)
+    tokenfile='../user_databricks.json', typing=False, verbose=True)
 
 # COMMAND ----------
 

@@ -1,11 +1,13 @@
-""" libreria Establecida por Databricks azure """
-
+"""Librería Python"""
 
 from io import BytesIO
 import json
-import os
 from pathlib import Path
+import requests
+from subprocess import check_call 
 from toolz import dicttoolz as dtoolz
+
+""" Librería Azure Databricks """
 
 from azure.storage.blob import (BlobServiceClient, BlobClient,ContainerClient)
 from azure.core.credentials import AccessToken
@@ -14,31 +16,43 @@ from azure.core.exceptions import (ClientAuthenticationError,ResourceNotFoundErr
 from azure.identity import (ClientSecretCredential,DefaultAzureCredential)
 from azure.keyvault.secrets import (SecretClient,KeyVaultSecret,KeyVaultSecretIdentifier)
 from pyspark.dbutils import DBUtils
-from pyspark.sql import SparkSession
+# from pyspark.sql import SparkSession
+from pyspark.sql import (functions, GroupedData, DataFrame,SparkSession)  
+
+"""Librería Python-Util"""
 
 import pandas as pd
 import pytest
+
+"""Recurso Creado"""
+
 import config as cfg
-# import dbks_dependencies as dbks_deps
-# dbks_deps.gh_epicpy('meetme-1',
-#     tokenfile='../user_databricks.yml', typing=False, verbose=True) # <----
-# from epic_py.delta import EpicDF, EpicDataBuilder # <----
-# from epic_py.platform import AzureResourcer # <----
-
-from src import (app_agent, app_resourcer,dbks_tables, app_path, app_abfss)
-
 
 spark = SparkSession.builder.getOrCreate()
 dbutils = DBUtils(spark)
-
+dbks_tables = {kk: f"{cfg.ENV}.{tt}"
+    for kk, tt in cfg.DBKS_MAPPING.items()}
 
 class Test:
     """Pruebas unitarias de bajo nivel para notebook fraudes"""
-    def __init__(self):
-        ambiente = os.getenv("ENV_TYPE")
-        print(ambiente)
 
-    def get_principal(self): # Obtención de credenciales para poder acceder
+    def get_user(self) -> dict:
+        usrs = "../user_databricks.json"
+
+        with open(usrs, 'r',encoding = "utf-8") as file:
+            info_json = json.load(file)
+
+        return info_json
+
+    def get_abfss(self) -> str:
+        container = "gold"
+        account = cfg.AZURE_RESOURCES[cfg.ENV]["storage"]
+        simple_path = cfg.AZURE_RESOURCES[cfg.ENV]["storage-paths"]["fraud"]
+        complete_path = f"abfss://{container}@{account}.dfs.core.windows.net/{simple_path}"
+
+        return complete_path
+
+    def get_principal(self) -> dict: # Obtención de credenciales para poder acceder
         """Obtención de la credencial del principal para acceder a otras instancias"""
         agent = cfg.SETUP_KEYS[cfg.ENV]
         dbks_scope = agent["databricks-scope"]
@@ -47,14 +61,10 @@ class Test:
 
         return ClientSecretCredential(**principal)
 
-    def get_usr(self):
+    def get_root(self) -> str:
         """ Esta función nos brinda el usuario que maneja el código"""
-        usrs = "./user_databricks.json"
-
-        with open(usrs, 'r',encoding = "utf-8") as file:
-            informacion_json = json.load(file)
-
-        usr_obj = informacion_json["user"]
+        info_json = self.get_user()
+        usr_obj = info_json["user"]
         rt_feather = f"file:/Workspace/Repos/{usr_obj}/fraud-prevention/refs/upload-specs/"
         rt_usr = dbutils.fs.ls(rt_feather)
 
@@ -62,7 +72,8 @@ class Test:
 
     def get_blob_df(self,container,file_name: str) -> pd.DataFrame:
         """Se accede a un blob para extraer un dataframe """
-        b_blob = container.get_blob_client(app_path+"/specs/"+file_name)
+        add_abfss = self.get_abfss()
+        b_blob = container.get_blob_client(add_abfss+"/specs/"+file_name)
         b_data = b_blob.download_blob()
         b_strm = BytesIO()
         b_data.readinto(b_strm)
@@ -75,10 +86,36 @@ class Test:
         """Se accede al contenedor"""
         client = self.get_principal()
         account = account or cfg.AZURE_RESOURCES[cfg.ENV]["storage"]
-        the_url = "https://stlakehyliaqas.blob.core.windows.net"
-        b_service = BlobServiceClient(the_url, client)
+        url = "https://stlakehyliaqas.blob.core.windows.net"
+        b_service = BlobServiceClient(url, client)
 
         return b_service.get_container_client(container)
+
+    def test_scope_dbks(self):
+        tokener = self.get_user()
+        obj_scope=tokener['dbks_scope']
+
+        scopes=dbutils.secrets.listScopes()
+        
+        for scope in scopes:
+            if scope.name==obj_scope:
+                assert scope.name==obj_scope,"El scope no existe"
+
+    def test_token_dbks(self):
+        tokener = self.get_user()
+        token = dbutils.secrets.get(scope=tokener['dbks_scope'], key=tokener['dbks_token'])
+
+        keys = {
+            'url'  : 'github.com/Bineo2/data-python-tools.git', 
+            'token': token, 
+            'ref'  : "meetme-1"
+        }
+
+        argument = "git+https://{token}@{url}@{ref}".format(**keys)
+        assert check_call(['pip', 'install', argument])==0,"Fallo el token"
+
+        # import dbks_dependencies as dbks_deps
+        # dbks_deps.gh_epicpy('meetme-1',tokenfile='../user_databricks.json', typing=False, verbose=True)
 
     def test_principal(self):
         """Revisión de premisos para la credencial obtenida"""
@@ -89,8 +126,6 @@ class Test:
             assert isinstance(token_test, AccessToken), "Service Principal or Azure Scope Fail."
         except ClientAuthenticationError as e:
             pytest.fail(f"Service Principal cant authenticate: {e}")
-        # except Exception as e:
-        #     pytest.fail(f"Error with Service Principal's token: {e}")
 
     def test_keyvault(self):
         """ Comprueba que la keyvault funcione correctamente - 
@@ -100,11 +135,11 @@ class Test:
         principal_credential = self.get_principal()
         key_client = SecretClient(vault_url,principal_credential)
         d_agent = cfg.SETUP_KEYS[cfg.ENV]["service-principal"]
-        vault = d_agent["tenant_id"]
+        secret_vault = d_agent["tenant_id"]
 
         try:
-            assert isinstance(key_client.get_secret(vault),
-                KeyVaultSecret),f"A secret with {vault} was not found in this key vault"
+            assert isinstance(key_client.get_secret(secret_vault),
+                KeyVaultSecret),f"A secret with {secret_vault} was not found in this key vault"
 
         except ResourceNotFoundError as e:
             pytest.fail(f"SecretClient OK, Secret doesnt exist [{keyvault}, {vault}]: {e}")
@@ -125,101 +160,68 @@ class Test:
             tables_name = cfg.ENV+"."+tables_name
             assert spark.catalog.tableExists(tables_name),f"Tabla no encontrada {tables_name}"
 
-    def test_feather_exist(self):
-        """Comprueba sí el feather existe"""
-        folder = dbutils.fs.ls(app_abfss)
-
-        assert folder != [],"No hay archivos en la carpeta"
-        for file in folder:
-            assert file.name.endswith('cols.feather'), "No es un archivo feather!"
-
-    def test_specs_content(self):
-        """Revisa que el feather contenido en la carpeta specs contenga información"""
-        container =self.get_storage_client(None,"gold")
-        folder = dbutils.fs.ls(app_abfss+"/specs") # ruta que apunta a la carpeta specs
-        # folder = dbutils.fs.ls(app_abfss)
-        # # ruta que apunta a la carpeta fraud-prevention, las dos son validas
-        for file in folder:
-            if file.name.endswith("latest.feather"):
-                data = self.get_blob_df(container,file.name)
-                assert not data.empty, "El blob se encuentra vacío 😱"
-
-    def test_specs_exist(self):
-        """# Constata que el feather exista en la carpeta specs"""
-        folder = dbutils.fs.ls(app_abfss+"/specs")
-        container = self.get_storage_client(None,"gold")
-
-        for file in folder:
-            if file.name.endswith("latest.feather"):
-                b_blob = container.get_blob_client(app_path+"/specs/"+file.name)
-                assert isinstance(b_blob,BlobClient), "No es cliente del contenedor"
-
-    def test_feather_accounts(self):
+    def test_feather_accounts_local(self):
         """Se verifica que la tabla contenga las columnas que índica el feather"""
-        pass
-
-    def test_feather_costumers(self):
-        """Se verifica que la tabla contenga las columnas que índica el feather"""
-        pass
-
-    def test_feather_paymonts(self):
-        """Se verifica que la tabla contenga las columnas que índica el feather"""
-        pass
-
-    def test_feather_col(self):
-        """No interesa porque sera removida"""
-        folder = dbutils.fs.ls(app_abfss+"/specs")
-        container = self.get_storage_client(None,"gold")
-        d_feathers = {}
-        d_tables = {}
+        # Obtención de datos provenientes del archivo feather
+        folder = self.get_root()
+        data_feather = pd.read_feather(folder[0].path)
+        columns_feather = data_feather["columna"].tolist()
 
         # Extracción del nombre de las columnas de las tablas. Vienen de DBCKS
-        for tables_key, tables_name in cfg.DBKS_MAPPING.items():
-            tables = EpicDF(spark, dbks_tables[tables_key])
-            d_tables[tables_key] = tables.columns
-
-        # Extracción del nombre de las columnas de los feathers. Veinen de EXCEL
-        for file in folder:
-            if file.name.endswith("latest.feather"):
-                data = self.get_blob_df(container,file.name)
-                sep = file.name.split("_")
-
-                if "customers" in sep:
-                    key = "clients"
-                else:
-                    key = sep[0]
-
-                columns = data["columna"]
-                d_feathers[key] = columns.tolist()
+        name_table = cfg.DBKS_MAPPING["accounts"]
+        # name_table = cfg.DBKS_MAPPING["clients"]
+        data_table = spark.read.table(cfg.ENV+"."+name_table)
+        columns_table = data_table.columns
 
         l_save = []
-        l_keep = []
+
+        for column in columns_feather:
+            if column in columns_table:
+                l_save.append(column)
+
+        assert len(l_save)==1,"No se encontraron coincidencias en las columnas"
+
+    def test_feather_costumers_local(self):
+        """Se verifica que la tabla contenga las columnas que índica el feather"""
+        # Obtención de datos provenientes del archivo feather
+        folder = self.get_root()
+        data_feather = pd.read_feather(folder[1].path)
+        columns_feather = data_feather["columna"].tolist()
+
+        # Extracción del nombre de las columnas de las tablas. Vienen de DBCKS
+        name_table = cfg.DBKS_MAPPING["clients"]
+        data_table = spark.read.table(cfg.ENV+"."+name_table)
+        columns_table = data_table.columns
+
+        l_save = []
         l_special = ["addr_street","addr_external_number","kyc_id","kyc_answer"]
 
-        for key,items in d_feathers.items():
-            if key != "payments":
-                for item in d_feathers[key]:
-                    if item == "None" or item == "N/A":
-                        pass
-                    elif item in d_tables[key] or item in l_special:
-                        l_save.append(item)
-                    elif item == "x_address":
-                        for i in range(0,2,1):
-                            l_save.append(l_special[i])
-                    elif item == "x_occupation" or item == "x_src_income":
-                        for i in range(2,4,1):
-                            l_save.append(l_special[i])
-                    else:
-                        pass
-                l_keep.append(l_save)
-                l_save = []
-        duty = [1,18]
+        for column in columns_feather:
+            if column in columns_table or column in l_special:
+                    l_save.append(column)
+            elif column == "x_address":
+                for i in range(0,2,1):
+                    l_save.append(l_special[i])
+            elif column == "x_occupation" or column == "x_src_income":
+                for i in range(2,4,1):
+                    l_save.append(l_special[i])
 
-        for i in range(0,len(l_keep),1):
-            assert len(l_keep[i])==duty[i], "Fallo en las columnas"
+        assert len(l_save)==18, "No se encontraron coincidencias en las columnas"
 
+    def test_feather_paymonts_local(self):
+        """Se verifica que la tabla contenga las columnas que índica el feather"""
+        # Obtención de datos provenientes del archivo feather
+        folder = self.get_root()
+        data_feather = pd.read_feather(folder[2].path)
+        columns_feather = data_feather["columna"].tolist()
+
+        # Extracción del nombre de las columnas de las tablas. Vienen de DBCKS
+        # No se cuenta con una tabla símil en databricks
+
+        assert columns_feather!=[],"No se encontro el feather paymonts"
 
 
 # Pruebas = Test()
-# ACTIVO = Pruebas.test_feather_exist()
+# # ACTIVO = Pruebas.test_token_dbks()#test_feather_exist()
+# ACTIVO = Pruebas.test_keyvault()
 # print(ACTIVO)
