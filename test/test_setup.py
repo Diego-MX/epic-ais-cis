@@ -1,13 +1,10 @@
-"""Librería Python"""
+"""Pruebas unitarias, se encargan de verificar que todos se encuentre habilitado y funcional"""
 
 from io import BytesIO
 import json
 from pathlib import Path
-import requests
-from subprocess import check_call 
+from subprocess import check_call
 from toolz import dicttoolz as dtoolz
-
-""" Librería Azure Databricks """
 
 from azure.storage.blob import (BlobServiceClient, BlobClient,ContainerClient)
 from azure.core.credentials import AccessToken
@@ -16,15 +13,10 @@ from azure.core.exceptions import (ClientAuthenticationError,ResourceNotFoundErr
 from azure.identity import (ClientSecretCredential,DefaultAzureCredential)
 from azure.keyvault.secrets import (SecretClient,KeyVaultSecret,KeyVaultSecretIdentifier)
 from pyspark.dbutils import DBUtils
-# from pyspark.sql import SparkSession
-from pyspark.sql import (functions, GroupedData, DataFrame,SparkSession)  
-
-"""Librería Python-Util"""
+from pyspark.sql import (functions, GroupedData, DataFrame,SparkSession)
 
 import pandas as pd
 import pytest
-
-"""Recurso Creado"""
 
 import config as cfg
 
@@ -37,6 +29,7 @@ class Test:
     """Pruebas unitarias de bajo nivel para notebook fraudes"""
 
     def get_user(self) -> dict:
+        """La función obtine la información del usuario por medio de user_databricks"""
         usrs = "../user_databricks.json"
 
         with open(usrs, 'r',encoding = "utf-8") as file:
@@ -45,6 +38,7 @@ class Test:
         return info_json
 
     def get_abfss(self) -> str:
+        """Se obtiene la dirección delm blob - no esta en uso dado que no se usan los blobs"""
         container = "gold"
         account = cfg.AZURE_RESOURCES[cfg.ENV]["storage"]
         simple_path = cfg.AZURE_RESOURCES[cfg.ENV]["storage-paths"]["fraud"]
@@ -92,16 +86,16 @@ class Test:
         return b_service.get_container_client(container)
 
     def test_scope_dbks(self):
+        """Verifica que el SCOPE se encuentre disponible"""
         tokener = self.get_user()
         obj_scope=tokener['dbks_scope']
-
         scopes=dbutils.secrets.listScopes()
-        
         for scope in scopes:
             if scope.name==obj_scope:
                 assert scope.name==obj_scope,"El scope no existe"
 
-    def test_token_dbks(self):
+    def test_token_dks(self):
+        """Se cerciora que el token funcione correctamente"""
         tokener = self.get_user()
         token = dbutils.secrets.get(scope=tokener['dbks_scope'], key=tokener['dbks_token'])
 
@@ -113,9 +107,6 @@ class Test:
 
         argument = "git+https://{token}@{url}@{ref}".format(**keys)
         assert check_call(['pip', 'install', argument])==0,"Fallo el token"
-
-        # import dbks_dependencies as dbks_deps
-        # dbks_deps.gh_epicpy('meetme-1',tokenfile='../user_databricks.json', typing=False, verbose=True)
 
     def test_principal(self):
         """Revisión de premisos para la credencial obtenida"""
@@ -142,7 +133,7 @@ class Test:
                 KeyVaultSecret),f"A secret with {secret_vault} was not found in this key vault"
 
         except ResourceNotFoundError as e:
-            pytest.fail(f"SecretClient OK, Secret doesnt exist [{keyvault}, {vault}]: {e}")
+            pytest.fail(f"SecretClient OK, Secret doesnt exist [{keyvault}, {secret_vault}]: {e}")
 
         except ClientAuthenticationError as e:
             pytest.fail(f"Failed to authenticate SecretClient [{keyvault}]: {e}")
@@ -198,11 +189,11 @@ class Test:
 
         for column in columns_feather:
             if column in columns_table or column in l_special:
-                    l_save.append(column)
+                l_save.append(column)
             elif column == "x_address":
                 for i in range(0,2,1):
                     l_save.append(l_special[i])
-            elif column == "x_occupation" or column == "x_src_income":
+            elif column in {"x_occupation", "x_src_income"}:
                 for i in range(2,4,1):
                     l_save.append(l_special[i])
 
@@ -222,6 +213,6 @@ class Test:
 
 
 # Pruebas = Test()
-# # ACTIVO = Pruebas.test_token_dbks()#test_feather_exist()
 # ACTIVO = Pruebas.test_keyvault()
 # print(ACTIVO)
+"""End-of-file (EOF)"""
