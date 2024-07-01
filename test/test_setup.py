@@ -34,6 +34,10 @@ dbutils = DBUtils(spark)
 
 class Test:
     """Pruebas unitarias de bajo nivel para notebook fraudes"""
+    def __init__(self):
+        ambiente = os.getenv("ENV_TYPE")
+        print(ambiente)
+
     def get_principal(self): # Obtención de credenciales para poder acceder
         """Obtención de la credencial del principal para acceder a otras instancias"""
         agent = cfg.SETUP_KEYS[cfg.ENV]
