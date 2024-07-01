@@ -94,7 +94,7 @@ class Test:
             if scope.name==obj_scope:
                 assert scope.name==obj_scope,"El scope no existe"
 
-    def test_token_dks(self):
+    def test_token_dbks(self):
         """Se cerciora que el token funcione correctamente"""
         tokener = self.get_user()
         token = dbutils.secrets.get(scope=tokener['dbks_scope'], key=tokener['dbks_token'])
