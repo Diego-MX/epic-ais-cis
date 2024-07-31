@@ -15,26 +15,29 @@ SETUP_KEYS = {
             'subscription_id': 'SUBSCRIPTION_ID_DEV',       #'QAS_SP_SUBSTN',
             'tenant_id'      : 'TENANT_ID_DEV'}},           #'AAD_TENANT'},
     'qas': {
+        'databricks-scope': 'eh-core-banking',
+        'github-access': 'github-access-token', 
         'service-principal': { 
-            'client_id'      : 'sp-core-events-client',      #'QAS_SP_CLIENT',
-            'client_secret'  : 'sp-core-events-secret',      #'QAS_SP_SECRET',
-            'subscription_id': 'sp-core-events-subscription',#'QAS_SP_SUBSTN',
-            'tenant_id'      : 'aad-tenant-id'},             #'AAD_TENANT'},
-            'databricks-scope': 'eh-core-banking'},
+            'client_id'      : 'sp-core-events-client',       #'QAS_SP_CLIENT',
+            'client_secret'  : 'sp-core-events-secret',       #'QAS_SP_SECRET',
+            'subscription_id': 'sp-core-events-subscription', #'QAS_SP_SUBSTN',
+            'tenant_id'      : 'aad-tenant-id'}},             #'AAD_TENANT'},
     'stg': {
-        'service-principal': { # oauth-databricks-qas
+        'service-principal': {      # oauth-databricks-qas
+        'databricks-scope': 'eh-core-banking', 
+        'github-access': 'github-access-token', 
             'client_id'      : 'sp-core-events-client',         #'QAS_SP_CLIENT',
             'client_secret'  : 'sp-core-events-secret',         #'QAS_SP_SECRET', 
             'subscription_id': 'sp-core-events-suscription',    #'QAS_SP_SUBSTN', 
-            'tenant_id'      : 'aad-tenant-id'},                #'AAD_TENANT'},
-        'databricks-scope': 'eh-core-banking'}, 
+            'tenant_id'      : 'aad-tenant-id'}},               #'AAD_TENANT'}, 
     'prd': {
+        'github-access': 'github-access-token', 
+        'databricks-scope': 'cx-collections',  #   eh-core-banking
         'service-principal': {
             'client_id'      : 'sp-collections-client', # 
             'client_secret'  : 'sp-collections-secret', #          
             'subscription_id': 'sp-collections-subscription', # 
-            'tenant_id'      : 'aad-tenant-id'}, 
-        'databricks-scope': 'cx-collections'},      #   eh-core-banking
+            'tenant_id'      : 'aad-tenant-id'}},
 }
 
 AZURE_RESOURCES = {

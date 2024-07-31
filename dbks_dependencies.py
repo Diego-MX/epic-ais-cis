@@ -3,15 +3,17 @@
 
 # pylint: disable=import-error
 # pylint: disable=import-outside-toplevel
+# pylint: disable=no-name-in-module
+# pylint: disable=unspecified-encoding
 # pylint: disable=useless-return
+
 from json import dumps
 from subprocess import check_call
 from pkg_resources import working_set
-from pyspark.dbutils import DBUtils     # pylint: disable=no-name-in-module
+from pyspark.dbutils import DBUtils     
 from pyspark.sql import SparkSession  
 import config 
 
-# from config import REQS_FILE, V_TYPING, EPICPY_REF, USER_FILE
 
 has_yaml = 'yaml' in working_set.by_key
 
@@ -35,16 +37,16 @@ def gh_epicpy(ref=None, tokenfile=None, typing=None, verbose=False):
         print(dumps(dumper))
     return
     
-def token_from_userfile(userfile=config.USER_FILE):
+
+def token_from_userfile(userfile=None):
     if not has_yaml: 
         pip_install('pyyaml')
-    
-    from yaml import safe_load         
-    with open(userfile, 'r') as _f:     # pylint: disable=unspecified-encoding
+    from yaml import safe_load       
+    userfile = userfile or config.USER_FILE 
+    with open(userfile, 'r') as _f:     
         tokener = safe_load(_f)
     spark = SparkSession.builder.getOrCreate()
     dbutils = DBUtils(spark)
-
     return dbutils.secrets.get(tokener['dbks_scope'], tokener['dbks_token']) 
     
 def pip_install(*args): 
