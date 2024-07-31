@@ -1,10 +1,9 @@
 """DX: September 5th, 2023
 Read specs from Excel file and upload to blob file. 
 """
+# pylint: disable=invalid-name
 from datetime import datetime as dt
-from pathlib import WindowsPath, Path
 from pytz import timezone
-import re   
 
 from dotenv import load_dotenv
 import pandas as pd
@@ -13,10 +12,11 @@ from epic_py.tools import read_excel_table
 from src import app_path, app_resourcer
 
 
-ref_path = "refs/Security Info.xlsx.lnk"    # pylint: disable=invalid-name
+ref_path = "refs/Security Info.xlsx.lnk"    
 cols_ref = (ref_path, 'Approach', 'fraud_cols')
 
-meta_cols = read_excel_table(*cols_ref).set_index('columna')  
+meta_cols = read_excel_table(*cols_ref)
+meta_cols.set_index('columna')  
 col_types = meta_cols['tipo'].dropna()    
 
 
@@ -29,7 +29,7 @@ def prepare_excelref(xls_df: pd.DataFrame):
 
 
 if __name__ == '__main__':
-    tmp_path = "refs/upload-specs"  # pylint: disable=invalid-name
+    tmp_path = "refs/upload-specs"  
     load_dotenv(override=True)
     
     # table: sheet

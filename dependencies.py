@@ -3,11 +3,14 @@
 
 # pylint: disable=import-error
 # pylint: disable=import-outside-toplevel
+# pylint: disable=no-name-in-module
+# pylint: disable=unspecified-encoding
 # pylint: disable=useless-return
+
 from json import dumps
 from subprocess import check_call
 from pkg_resources import working_set
-from pyspark.dbutils import DBUtils     # pylint: disable=no-name-in-module
+from pyspark.dbutils import DBUtils     
 from pyspark.sql import SparkSession  
 import config 
 
@@ -40,7 +43,7 @@ def token_from_userfile(userfile=None):
         pip_install('pyyaml')
     from yaml import safe_load       
     userfile = userfile or config.USER_FILE 
-    with open(userfile, 'r') as _f:     # pylint: disable=unspecified-encoding
+    with open(userfile, 'r') as _f:     
         tokener = safe_load(_f)
     spark = SparkSession.builder.getOrCreate()
     dbutils = DBUtils(spark)

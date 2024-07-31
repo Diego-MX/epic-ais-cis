@@ -1,0 +1,5 @@
+
+/* only for code blocks, not inline code */
+pre code {
+	font-family: "Comic Sans MS", cursive;
+}

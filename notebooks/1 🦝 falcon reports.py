@@ -19,28 +19,33 @@ deps.gh_epicpy('meetme-1',
 
 # COMMAND ----------
 
-# pylint: disable=wrong-import-position
-# pylint: disable=wrong-import-order
+# pylint: disable=consider-using-f-string
+# pylint: disable=expression-not-assigned
 # pylint: disable=invalid-name
+# pylint: disable=import-error
+# pylint: disable=no-name-in-module
+# pylint: disable=wrong-import-order
+# pylint: disable=wrong-import-position
+
 from datetime import datetime as dt
 from io import BytesIO
-from operator import methodcaller as ϱ, eq
-from os import getenv
-from pathlib import Path
+from operator import methodcaller as ϱ
 from pytz import timezone as tz
 
+import matplotlib.pyplot as plt
 import pandas as pd
 from pyspark.sql import functions as F, Row, SparkSession
-from pyspark.dbutils import DBUtils     # pylint: disable=no-name-in-module,import-error
-from toolz import curry, pipe, remove
+from pyspark.dbutils import DBUtils     
+from toolz import pipe, remove
 from toolz.curried import map as map_z
 
 from epic_py.delta import EpicDF, EpicDataBuilder, TypeHandler
 from epic_py.tools import dirfiles_df, partial2
 
+
 from src import (app_agent, app_resourcer, app_abfss, app_path,
     dbks_tables, falcon_types, falcon_rename)
-from src.head_foot import headfooters   # pylint: disable=ungrouped-imports
+from src.head_foot import headfooters   
 
 spark = SparkSession.builder.getOrCreate()
 dbutils = DBUtils(spark)
@@ -52,7 +57,7 @@ COL_DEBUG = False
 
 w_get = dbutils.widgets.get
 
-row_name = lambda row: "{name}-{len}".format(**row)   # pylint: disable=consider-using-f-string
+row_name = lambda row: "{name}-{len}".format(**row)   
 
 def replace_if(eq_val, rep_val): 
     # xx -> rep_val if xx == eq_val else xx 
@@ -221,46 +226,46 @@ accounts_3.save_as_file(
 
 # COMMAND ----------
 
-gender_df = spark.createDataFrame([
-    Row(fad_gender='H', gender_new='M'), 
-    Row(fad_gender='M', gender_new='F')])
+# gender_df = spark.createDataFrame([
+#     Row(fad_gender='H', gender_new='M'), 
+#     Row(fad_gender='M', gender_new='F')])
 
-customers_i = (EpicDF(spark, dbks_tables["clients"])
-               .select(F.col("client_id"),
-                       F.col("kyc_id"),
-                       F.col("kyc_answer")
-                       ))
+# customers_i = (EpicDF(spark, dbks_tables["clients"])
+#                .select(F.col("client_id"),
+#                        F.col("kyc_id"),
+#                        F.col("kyc_answer")
+#                        ))
 
-customers_i  = (customers_i
-                .groupby("client_id")
-                .pivot("kyc_id")
-                .agg(F.first("kyc_answer"))
-                .select(F.col("client_id"),
-                        F.col("OCCUPATION").alias("kyc_occupation"),
-                        F.col("SOURCEOFINCOME").alias("kyc_src_income")
-                        ))
+# customers_i  = (customers_i
+#                 .groupby("client_id")
+#                 .pivot("kyc_id")
+#                 .agg(F.first("kyc_answer"))
+#                 .select(F.col("client_id"),
+#                         F.col("OCCUPATION").alias("kyc_occupation"),
+#                         F.col("SOURCEOFINCOME").alias("kyc_src_income")
+#                         ))
 
-customers_0 = (EpicDF(spark, dbks_tables["clients"])
-                .drop("kyc_id")
-                .drop("kyc_answer")
-                ).distinct().join(customers_i,"client_id","inner")
+# customers_0 = (EpicDF(spark, dbks_tables["clients"])
+#                 .drop("kyc_id")
+#                 .drop("kyc_answer")
+#                 ).distinct().join(customers_i,"client_id","inner")
 
-customers_1 = (customers_0.select(F.col("client_id").alias("sap_client_id"),       
-                F.col("first_name").alias("user_first_name"),
-                F.col("last_name").alias("user_first_last_name"),       
-                F.col("last_name2").alias("user_second_last_name"),      
-                F.col("phone_number").alias("user_phone_number"),      
-                F.col("current_email_address").alias("user_email"),      
-                F.col("birth_date").alias("fad_birth_date"),        
-                F.col("birth_place_name").alias("fad_birth_cntry"),   
-                F.col("addr_district").alias("user_neighborhood"),   
-                F.col("region").alias("fad_state"),
-                F.col("person_rfc").alias("user_rfc"),
-                F.col("person_gender").alias("fad_gender"),
-                F.concat_ws( " ","addr_street","addr_external_number").alias("fad_addr_1"),
-                F.col("kyc_occupation"),
-                F.col("kyc_src_income"))       
-                ).distinct()
+# customers_1 = (customers_0.select(F.col("client_id").alias("sap_client_id"),       
+#                 F.col("first_name").alias("user_first_name"),
+#                 F.col("last_name").alias("user_first_last_name"),       
+#                 F.col("last_name2").alias("user_second_last_name"),      
+#                 F.col("phone_number").alias("user_phone_number"),      
+#                 F.col("current_email_address").alias("user_email"),      
+#                 F.col("birth_date").alias("fad_birth_date"),        
+#                 F.col("birth_place_name").alias("fad_birth_cntry"),   
+#                 F.col("addr_district").alias("user_neighborhood"),   
+#                 F.col("region").alias("fad_state"),
+#                 F.col("person_rfc").alias("user_rfc"),
+#                 F.col("person_gender").alias("fad_gender"),
+#                 F.concat_ws( " ","addr_street","addr_external_number").alias("fad_addr_1"),
+#                 F.col("kyc_occupation"),
+#                 F.col("kyc_src_income"))       
+#                 ).distinct()
 
 # COMMAND ----------
 
@@ -311,19 +316,17 @@ customers_specs.loc[1, 'column'] = 'modelSTUB' if w_stub else 'RBTRAN'
 cis_longname = '~'.join(row_name(rr) for _, rr in customers_specs.iterrows())
 cis_name = cis_longname if COL_DEBUG else 'cis-columna-fixed-width'
 
-name_onecol = '~'.join(row_name(rr)       # pylint: disable=invalid-name
+name_onecol = '~'.join(row_name(rr)       
     for _, rr in customers_specs.iterrows())
 
 gender_df_2 = spark.createDataFrame([
     Row(gender='H', gender_new='M'), 
     Row(gender='M', gender_new='F')])
 
-
 customers_extract = falcon_builder.get_extract(customers_specs, 'delta')
 customers_loader  = falcon_builder.get_loader(customers_specs, 'fixed-width')
 customers_onecol  = (F.concat(*customers_specs['name'].values)
     .alias(cis_name))
-
 
 customers_0 = EpicDF(spark, dbks_tables['clients'])
 
@@ -362,7 +365,7 @@ if haz_pagos:
             .rename(columns=falcon_rename))
     payments_specs.loc[1, 'column'] = 'modelSTUB' if w_stub else 'RBTRAN'
 
-    one_column = '~'.join(map(row_name, payments_specs.itertuples()))    # pylint: disable=invalid-name
+    one_column = '~'.join(map(row_name, payments_specs.itertuples()))    
 
     payments_extract = falcon_builder.get_extract(payments_specs, 'delta')
     payments_loader = falcon_builder.get_loader(payments_specs, 'fixed-width')
@@ -419,8 +422,6 @@ cis_inf.display()
 
 # COMMAND ----------
 
-import matplotlib.pyplot as plt
-
 ais_cnts = ais_inf.collect()[0]["count"]
 ais_long = ais_inf.collect()[0]["ais_longitud"]
 cis_cnts = cis_inf.collect()[0]["count"]
@@ -437,11 +438,9 @@ for i in range(0,len(name),1):
     name2.append(name[i]+" - "+str(count[i]))
     name3.append(name[i]+" - "+str(long[i]))
     
-print(name2, name3)
 fig,ax = plt.subplots(1,2,figsize = (9,3),sharey = False)
 ax[0].bar(name,count,label = name2, color = color)
 ax[0].legend()
-print(dir(plt.grid()))
 ax[1].bar(name,long,label = name3,color = color)
 ax[1].legend()
 
@@ -459,7 +458,7 @@ cis_path = f"{app_abfss}/reports/customers/"
 print(f"""
 CIS Path:\t{cis_path}
 (horario UTC)"""[1:])
-(dirfiles_df(cis_path, spark)   # pylint: disable=expression-not-assigned
+(dirfiles_df(cis_path, spark)   
     .loc[:, ['name', 'modificationTime', 'size']])
 
 # COMMAND ----------
@@ -468,5 +467,5 @@ ais_path = f"{app_abfss}/reports/accounts/"
 print(f"""
 AIS Path:\t{ais_path}
 (horario UTC)"""[1:])
-(dirfiles_df(ais_path, spark)   # pylint: disable=expression-not-assigned
+(dirfiles_df(ais_path, spark)   
     .loc[:, ['name', 'modificationTime', 'size']])
