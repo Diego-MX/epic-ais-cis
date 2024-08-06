@@ -19,13 +19,13 @@ from pyspark.sql import SparkSession
 import pandas as pd
 import pytest
 import config as cfg
-# import dbks_dependencies as dbks_deps
+from . import ENV
 # dbks_deps.gh_epicpy('meetme-1',
 #     tokenfile='../user_databricks.yml', typing=False, verbose=True) # <----
 # from epic_py.delta import EpicDF, EpicDataBuilder # <----
 # from epic_py.platform import AzureResourcer # <----
 
-from src import (app_agent, app_resourcer,dbks_tables, app_path, app_abfss)
+from src import app_agent, app_resourcer,dbks_tables, app_path, app_abfss
 
 
 spark = SparkSession.builder.getOrCreate()
@@ -36,24 +36,20 @@ class Test:
     """Pruebas unitarias de bajo nivel para notebook fraudes"""
     def get_principal(self): # Obtención de credenciales para poder acceder
         """Obtención de la credencial del principal para acceder a otras instancias"""
-        agent = cfg.SETUP_KEYS[cfg.ENV]
+        agent = cfg.SETUP_KEYS[ENV]
         dbks_scope = agent["databricks-scope"]
         lam_secret = lambda ss: dbutils.secrets.get(dbks_scope, ss)
         principal = dtoolz.valmap(lam_secret, agent["service-principal"])
-
         return ClientSecretCredential(**principal)
 
     def get_usr(self):
         """ Esta función nos brinda el usuario que maneja el código"""
         usrs = "./user_databricks.json"
-
-        with open(usrs, 'r',encoding = "utf-8") as file:
+        with open(usrs, 'r', encoding = "utf-8") as file:
             informacion_json = json.load(file)
-
         usr_obj = informacion_json["user"]
         rt_feather = f"file:/Workspace/Repos/{usr_obj}/fraud-prevention/refs/upload-specs/"
         rt_usr = dbutils.fs.ls(rt_feather)
-
         return rt_usr
 
     def get_blob_df(self,container,file_name: str) -> pd.DataFrame:
@@ -64,16 +60,14 @@ class Test:
         b_data.readinto(b_strm)
         b_strm.seek(0)
         data = pd.read_feather(b_strm)
-
         return data
 
     def get_storage_client(self, account = None,container = None):
         """Se accede al contenedor"""
         client = self.get_principal()
-        account = account or cfg.AZURE_RESOURCES[cfg.ENV]["storage"]
+        account = account or cfg.AZURE_RESOURCES[ENV]["storage"]
         the_url = "https://stlakehyliaqas.blob.core.windows.net"
         b_service = BlobServiceClient(the_url, client)
-
         return b_service.get_container_client(container)
 
     def test_principal(self):
@@ -91,11 +85,11 @@ class Test:
     def test_keyvault(self):
         """ Comprueba que la keyvault funcione correctamente - 
         Sigue en investigación se debe de hacer una petición"""
-        keyvault = cfg.AZURE_RESOURCES[cfg.ENV]["keyvault"]
+        keyvault = cfg.AZURE_RESOURCES[ENV]["keyvault"]
         vault_url = f"https://{keyvault}.vault.azure.net/"
         principal_credential = self.get_principal()
         key_client = SecretClient(vault_url,principal_credential)
-        d_agent = cfg.SETUP_KEYS[cfg.ENV]["service-principal"]
+        d_agent = cfg.SETUP_KEYS[ENV]["service-principal"]
         vault = d_agent["tenant_id"]
 
         try:
@@ -118,7 +112,7 @@ class Test:
     def test_tables_exist(self):
         """Verifica si la tabla proveniente de dbks existe"""
         for tables_key, tables_name in cfg.DBKS_MAPPING.items():
-            tables_name = cfg.ENV+"."+tables_name
+            tables_name = ENV+"."+tables_name
             assert spark.catalog.tableExists(tables_name),f"Tabla no encontrada {tables_name}"
 
     def test_feather_exist(self):
@@ -192,7 +186,7 @@ class Test:
         l_keep = []
         l_special = ["addr_street","addr_external_number","kyc_id","kyc_answer"]
 
-        for key,items in d_feathers.items():
+        for key, _ in d_feathers.items():
             if key != "payments":
                 for item in d_feathers[key]:
                     if item == "None" or item == "N/A":

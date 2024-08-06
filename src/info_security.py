@@ -41,7 +41,7 @@ if __name__ == '__main__':
     a_ref, sheet = 'customers', 'CIS'
     for a_ref, sheet in data_ref.items():
         now_str = (dt.now(tz=timezone("America/Mexico_City"))
-                .strftime("%Y-%m-%d_%H:%M"))
+            .strftime("%Y-%m-%d_%H:%M"))
 
         ref_file = f"{tmp_path}/{a_ref}_cols.feather"
         blob_0   = f"{app_path}/specs/{a_ref}_specs_latest.feather"

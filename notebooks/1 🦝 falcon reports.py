@@ -13,9 +13,11 @@
 
 # COMMAND ----------
 
-import dbks_dependencies as deps
-deps.gh_epicpy('meetme-1',  
-    tokenfile='../user_databricks.yml', typing=False, verbose=True)
+import os
+import dependencies as deps
+if 'GH_ACCESS_TOKEN' not in os.environ: 
+    deps.token_from_server()
+deps.install_reqs()
 
 # COMMAND ----------
 

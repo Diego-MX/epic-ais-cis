@@ -32,3 +32,24 @@ demás áreas de infraestructura.  Particularmente:
     - tablas en _metastore_/_unity catalog_ de Databricks de acuerdo con `config.DBKS_MAPPING`. 
     - especificaciones técnicas de las tablas; idealmente se guardan en el _storage_, 
       aunque una solución temporal es leerlas de la carpeta del repositorio.  
+
+
+# Instalación
+
+0. Naturalmente se requiere Python.  
+  
+  i) Instalar Python3.10
+    ```shell
+    > virtualenv fraud-env -p ${PY310} 
+    > python .\install_reqs.py
+    ```
+    
+
+  Donde `${PY310}` es la ubicación de Python 3.10 -que se tiene que instalar antes 
+  para usarse con `virtualenv`.  
+  Uno de los paquetes se instala de los repos internos (que no está en PyPI), así 
+  que se necesita la variable de ambiente `GH_ACCESS_TOKEN`.  
+
+
+
+

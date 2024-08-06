@@ -1,27 +1,25 @@
 # pylint: disable=missing-module-docstring
 import os
 
-REQS_FILE = '../pip_reqs.txt'
-USER_FILE = '../user_databricks.yml'
-EPIC_REF = 'gh-1.4' 
-V_TYPING = '4.7.1'
+REQS_FILE = 'pip_reqs.txt'
+USER_FILE = 'user_databricks.json'
 
 ## Infrastructure resources are defined here.
 SETUP_KEYS = {
     'dev': {
         'service-principal': { 
-            'client_id'      : 'CLIENT_ID_DEV',             #'QAS_SP_CLIENT',
-            'client_secret'  : 'CLIENT_SECRET_DEV',         #'QAS_SP_SECRET',
-            'subscription_id': 'SUBSCRIPTION_ID_DEV',       #'QAS_SP_SUBSTN',
-            'tenant_id'      : 'TENANT_ID_DEV'}},           #'AAD_TENANT'},
+            'client_id'      : 'CLIENT_ID_DEV',                 #'QAS_SP_CLIENT',
+            'client_secret'  : 'CLIENT_SECRET_DEV',             #'QAS_SP_SECRET',
+            'subscription_id': 'SUBSCRIPTION_ID_DEV',           #'QAS_SP_SUBSTN',
+            'tenant_id'      : 'TENANT_ID_DEV'}},               #'AAD_TENANT'},
     'qas': {
         'databricks-scope': 'eh-core-banking',
         'github-access': 'github-access-token', 
         'service-principal': { 
-            'client_id'      : 'sp-core-events-client',       #'QAS_SP_CLIENT',
-            'client_secret'  : 'sp-core-events-secret',       #'QAS_SP_SECRET',
-            'subscription_id': 'sp-core-events-subscription', #'QAS_SP_SUBSTN',
-            'tenant_id'      : 'aad-tenant-id'}},             #'AAD_TENANT'},
+            'client_id'      : 'sp-core-events-client',         #'QAS_SP_CLIENT',
+            'client_secret'  : 'sp-core-events-secret',         #'QAS_SP_SECRET',
+            'subscription_id': 'sp-core-events-subscription',   #'QAS_SP_SUBSTN',
+            'tenant_id'      : 'aad-tenant-id'}},               #'AAD_TENANT'},
     'stg': {
         'service-principal': {      # oauth-databricks-qas
         'databricks-scope': 'eh-core-banking', 
