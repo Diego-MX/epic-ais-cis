@@ -18,12 +18,12 @@ El archivo `config.py` contiene las especificaciones para la interacción con la
 demás áreas de infraestructura.  Particularmente:  
 
 * Usamos el sufijo `(data-)(ops-)fraud-prevention` para designar los elementos correspondientes.  
-* _Service principal_ `sp-fraud-prevention` para la personificación del proceso. 
+* _Service principal_ `sp-fraud-prevention` para la autenticación del proceso. 
 * _Scope de Databricks_ `ops-fraud-prevention` para almacenar las credenciales del
     principado.
 * Recursos de Azure asociados:
   * _Key Vault_ `kv-ops-data-{env}` para almacenar secretos adicionales.  
-  * _Storage_ `stlakehylia{env}` donde se leen y depositan datos de reportería.  
+  * _Storage_ `stlakehylia{env}` donde se leen y depositan datos de reportes.  
   * Ruta del _storage_ `/ops/fraud-prevention` para cualquier generación de archivos.  
   * Más aún, utilizamos la siguiente especificación en la generación de reportes: 
     - `.../reports/{cual-reporte}/yyyy-mm-dd.csv` donde `cual-reporte` es uno de 
@@ -32,3 +32,19 @@ demás áreas de infraestructura.  Particularmente:
     - tablas en _metastore_/_unity catalog_ de Databricks de acuerdo con `config.DBKS_MAPPING`. 
     - especificaciones técnicas de las tablas; idealmente se guardan en el _storage_, 
       aunque una solución temporal es leerlas de la carpeta del repositorio.  
+
+
+# Instalación
+
+0. Naturalmente se requiere Python.  
+  i) Variables de ambiente.  `template.env` remplazar y guardar en `.env`
+  ii) Instalar Python3.10, guardar ubicación como `$PY310`. 
+  iii) Crear ambiente, activar e instalar: 
+    ```shell
+    > virtualenv fraud-env -p ${PY310} 
+    > python .\install_reqs.py
+    ```
+  
+
+
+

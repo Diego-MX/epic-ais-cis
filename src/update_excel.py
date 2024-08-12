@@ -1,19 +1,15 @@
-from pyspark.sql import functions as F, Row, SparkSession 
-from pyspark.dbutils import DBUtils 
-import pandas as pd
+"""Este todavía no está listo."""
 
-import dbks_dependencies as deps
-
-deps.pip_install("platform")
-import requests
-import pathlib
-from pathlib import WindowsPath, Path
+from pathlib import Path
+import platform 
 import re 
 
-import platform 
+import dependencies as deps
+
+deps.install_reqs()
 
 sistema = platform.system()
-print("Estamos en {}".format(sistema))
+print(f"Estamos en {sistema}")
 
 
 a_file = "refs/Security Info.xlsx.lnk"
@@ -26,7 +22,8 @@ if isinstance(a_file, str):
 if isinstance(a_file, Path):
     file_ext = re.findall(r"\.([A-Za-z]{3,4})\.lnk", a_file.name)[0]
 else:
-    raise Exception("Couldn't determine file extension.")
+    raise ValueError("Couldn't determine file extension.")
+    
 
 # spark = SparkSession.builder.getOrCreate()
 # dbutils = DBUtils(spark)

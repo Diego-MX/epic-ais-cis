@@ -1,5 +1,10 @@
-toolz
-pytest==7.2.2
-pytest-cov==4.0.0
-ruff==v0.0.260
-coverage-badge~=1.1.0
+#python3.10
+
+epic-py @ git+https://${GH_ACCESS_TOKEN}@github.com/Bineo2/data-python-tools@gh-1.12
+
+## Paquetes borrados se incluyen en EpicPy. 
+## Los no borrados, no estoy (DX) seguro para qué sirven. 
+# delta-spark~=2.2.0
+# coverage-badge~=1.1.0
+# pytest-cov==4.0.0
+# ruff==v0.0.260
