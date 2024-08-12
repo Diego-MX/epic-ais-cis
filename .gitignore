@@ -1,10 +1,12 @@
+# Configuraciones del proyecto, secretos y nombres de secretos.
 .env
 user_databricks.json
 
+# Herramientas de desarrollo del usuario.
 start_env.ps1
-
 .vscode
 .pylintrc
 
+# Cache de los sistemas.
 **__pycache__**
 **.DS_Store**
