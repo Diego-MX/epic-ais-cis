@@ -80,7 +80,7 @@ Tal vez lo había pensado de una forma, y después no me convenció.
 O tal vez ya lo corregimos cuando hicimos _push_ ayer.  
 En todo caso, perdón por la cconfusión.  
 
-- `dependencies.py -> dbks_dependencies.py`  
+- `dependencies.py`  
   (habíamos dicho que _scripts_ en el directorio base no utilizan librerías, 
   pero `dependencies.py` sí utiliza las de Databricks)
 

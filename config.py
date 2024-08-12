@@ -1,5 +1,14 @@
-# pylint: disable=missing-module-docstring
-import os
+# pylint: disable=anomalous-backslash-in-string
+"""
+En este script se inicializan variables ligadas a objetos que se implementan por 
+parte del equipo de Infraestructura.  
+
+En particular las llaves de secretos en llaveros de Azure y Databricks admiten la 
+regex '[a-z\-]*'. 
+
+La correspondencia con variables en '.env' es mediante: 
+{azure|databricks} -> UPPER -> SUB(-, _) -> {.env}
+"""
 
 REQS_FILE = 'pip_reqs.txt'
 USER_FILE = 'user_databricks.json'
@@ -70,5 +79,3 @@ DBKS_MAPPING = { # Key from Excel Refs, Value on DBKS metastore.
     'clients' : 'star_schema.dim_client',  # 
     'accounts': 'star_schema.current_account_x'}
 
-ENV = os.getenv('ENV_TYPE')
-SERVER = os.getenv('SERVER_TYPE')

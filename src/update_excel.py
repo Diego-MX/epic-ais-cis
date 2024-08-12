@@ -1,19 +1,15 @@
 """Este todavía no está listo."""
 
-import pathlib
-from pathlib import WindowsPath, Path
+from pathlib import Path
 import platform 
 import re 
-import requests
-
-import pandas as pd
 
 import dependencies as deps
 
 deps.install_reqs()
 
 sistema = platform.system()
-print("Estamos en {}".format(sistema))
+print(f"Estamos en {sistema}")
 
 
 a_file = "refs/Security Info.xlsx.lnk"

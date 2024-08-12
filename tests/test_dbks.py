@@ -1,38 +1,30 @@
 """ libreria Establecida por Databricks azure """
 
-
 from io import BytesIO
 import json
-import os
-from pathlib import Path
-from toolz import dicttoolz as dtoolz
 
-from azure.storage.blob import (BlobServiceClient, BlobClient,ContainerClient)
+from azure.storage.blob import BlobServiceClient, BlobClient
 from azure.core.credentials import AccessToken
-from azure.core.exceptions import (ClientAuthenticationError,ResourceNotFoundError,
-                                   ServiceRequestError)
-from azure.identity import (ClientSecretCredential,DefaultAzureCredential)
-from azure.keyvault.secrets import (SecretClient,KeyVaultSecret,KeyVaultSecretIdentifier)
+from azure.core.exceptions import (ClientAuthenticationError, ResourceNotFoundError, 
+    ServiceRequestError)
+from azure.identity import ClientSecretCredential
+from azure.keyvault.secrets import SecretClient, KeyVaultSecret
+import pandas as pd
 from pyspark.dbutils import DBUtils
 from pyspark.sql import SparkSession
-
-import pandas as pd
 import pytest
+from toolz import dicttoolz as dtoolz
+
+from epic_py.delta import EpicDF
 import config as cfg
-from . import ENV
-# dbks_deps.gh_epicpy('meetme-1',
-#     tokenfile='../user_databricks.yml', typing=False, verbose=True) # <----
-# from epic_py.delta import EpicDF, EpicDataBuilder # <----
-# from epic_py.platform import AzureResourcer # <----
-
-from src import app_agent, app_resourcer,dbks_tables, app_path, app_abfss
-
+from src import dbks_tables, app_path, app_abfss
+from tests import ENV
 
 spark = SparkSession.builder.getOrCreate()
 dbutils = DBUtils(spark)
 
 
-class Test:
+class TestConfig:
     """Pruebas unitarias de bajo nivel para notebook fraudes"""
     def get_principal(self): # Obtención de credenciales para poder acceder
         """Obtención de la credencial del principal para acceder a otras instancias"""
@@ -209,7 +201,6 @@ class Test:
             assert len(l_keep[i])==duty[i], "Fallo en las columnas"
 
 
+class TestEpicPakcage: 
+    pass 
 
-# Pruebas = Test()
-# ACTIVO = Pruebas.test_feather_exist()
-# print(ACTIVO)
