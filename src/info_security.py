@@ -5,6 +5,7 @@ Read specs from Excel file and upload to blob file.
 from datetime import datetime as dt
 import sys
 
+
 from dotenv import load_dotenv
 import pandas as pd
 from pytz import timezone
@@ -12,8 +13,9 @@ from pytz import timezone
 from epic_py.tools import read_excel_table
 from src import app_path, app_resourcer
 
-ref_path = "refs/Security Info.xlsx.lnk
-cols_ref = (ref_path, 'Approach', 'fraud_cols') 
+ref_path = "refs/Security Info.xlsx.lnk"
+
+cols_ref = (ref_path, 'Approach', 'fraud_cols')
 meta_cols = read_excel_table(*cols_ref)
 meta_cols=meta_cols.set_index('columna')
 col_types = meta_cols['tipo'].dropna() # pylint: ignore ? unsubscriptable-object.html
