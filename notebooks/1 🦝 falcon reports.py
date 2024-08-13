@@ -19,30 +19,33 @@ deps.gh_epicpy('meetme-1',
 
 # COMMAND ----------
 
-# pylint: disable=wrong-import-position
-# pylint: disable=wrong-import-order
+# pylint: disable=consider-using-f-string
+# pylint: disable=expression-not-assigned
 # pylint: disable=invalid-name
+# pylint: disable=import-error
+# pylint: disable=no-name-in-module
+# pylint: disable=wrong-import-order
+# pylint: disable=wrong-import-position
+
 from datetime import datetime as dt
 from io import BytesIO
-from operator import methodcaller as ϱ, eq
-from os import getenv
-from pathlib import Path
+from operator import methodcaller as ϱ
 from pytz import timezone as tz
 
+import matplotlib.pyplot as plt
 import pandas as pd
 from pyspark.sql import functions as F, Row, SparkSession
-from pyspark.dbutils import DBUtils     # pylint: disable=no-name-in-module,import-error
-from toolz import curry, pipe, remove
+from pyspark.dbutils import DBUtils     
+from toolz import pipe, remove
 from toolz.curried import map as map_z
 
 from epic_py.delta import EpicDF, EpicDataBuilder, TypeHandler
 from epic_py.tools import dirfiles_df, partial2
 
-import matplotlib.pyplot as plt
 
 from src import (app_agent, app_resourcer, app_abfss, app_path,
     dbks_tables, falcon_types, falcon_rename)
-from src.head_foot import headfooters   # pylint: disable=ungrouped-imports
+from src.head_foot import headfooters   
 
 spark = SparkSession.builder.getOrCreate()
 dbutils = DBUtils(spark)
@@ -54,7 +57,7 @@ COL_DEBUG = False
 
 w_get = dbutils.widgets.get
 
-row_name = lambda row: "{name}-{len}".format(**row)   # pylint: disable=consider-using-f-string
+row_name = lambda row: "{name}-{len}".format(**row)   
 
 def replace_if(eq_val, rep_val): 
     # xx -> rep_val if xx == eq_val else xx 
@@ -75,7 +78,7 @@ default_path = "../refs/upload-specs"
 
 dbutils.widgets.text('con_pagos', 'false', "Ejecutar PIS-Payment Info. Sec.")
 dbutils.widgets.text('workflow_stub', 'true', "Nombre de workflow como campo en reportes.")
-dbutils.widgets.text('specs_local', 'false', "Archivo Feather p. Specs en Repo")
+dbutils.widgets.text('specs_local', 'true', "Archivo Feather p. Specs en Repo")
 
 
 # COMMAND ----------
@@ -153,6 +156,10 @@ accounts_transform = (lambda accs_df: accs_df
     .filter(es_ligera)
     .withColumn('Type', F.when(es_ligera, 'D').otherwise('ProductID')))
 
+
+# COMMAND ----------
+
+dbks_tables['accounts']
 
 # COMMAND ----------
 
@@ -269,6 +276,7 @@ else:
 customers_specs.loc[1, 'column'] = 'modelSTUB' if w_stub else 'RBTRAN'
 cis_longname = '~'.join(row_name(rr) for _, rr in customers_specs.iterrows())
 cis_name = cis_longname if COL_DEBUG else 'cis-columna-fixed-width'
+
 name_onecol = '~'.join(row_name(rr)       # pylint: disable=invalid-name
     for _, rr in customers_specs.iterrows())
 
@@ -320,7 +328,7 @@ if haz_pagos:
             .rename(columns=falcon_rename))
     payments_specs.loc[1, 'column'] = 'modelSTUB' if w_stub else 'RBTRAN'
 
-    one_column = '~'.join(map(row_name, payments_specs.itertuples()))    # pylint: disable=invalid-name
+    one_column = '~'.join(map(row_name, payments_specs.itertuples()))    
 
     payments_extract = falcon_builder.get_extract(payments_specs, 'delta')
     payments_loader = falcon_builder.get_loader(payments_specs, 'fixed-width')
@@ -413,7 +421,7 @@ cis_path = f"{app_abfss}/reports/customers/"
 print(f"""
 CIS Path:\t{cis_path}
 (horario UTC)"""[1:])
-(dirfiles_df(cis_path, spark)   # pylint: disable=expression-not-assigned
+(dirfiles_df(cis_path, spark)   
     .loc[:, ['name', 'modificationTime', 'size']])
 
 # COMMAND ----------
@@ -422,5 +430,5 @@ ais_path = f"{app_abfss}/reports/accounts/"
 print(f"""
 AIS Path:\t{ais_path}
 (horario UTC)"""[1:])
-(dirfiles_df(ais_path, spark)   # pylint: disable=expression-not-assigned
+(dirfiles_df(ais_path, spark)   
     .loc[:, ['name', 'modificationTime', 'size']])
