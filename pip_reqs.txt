@@ -1,5 +1,16 @@
-toolz
-pytest==7.2.2
-pytest-cov==4.0.0
-ruff==v0.0.260
-coverage-badge~=1.1.0
+epic-py @ git+https://${GH_ACCESS_TOKEN}@github.com/Bineo2/data-python-tools@gh-1.4
+         
+#pytest==7.2.2
+#pytest-cov==4.0.0
+#ruff==v0.0.260
+#coverage-badge~=1.1.0
+#python==3.10 
+#toolz==0.12.0
+#openpyxl==3.0.10 
+#python-dotenv==0.21.0
+#azure-identity==1.12.0
+#azure-keyvault-secrets==4.6.0
+#azure-storage-blob==12.9.0
+#pyspark==3.3.2
+#delta-spark==2.2.0
+#ipython==8.10.0
