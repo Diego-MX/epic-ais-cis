@@ -263,6 +263,7 @@ cust_time = get_time()
 if specs_local: 
     customers_specs = (pd.read_feather(f"{at_specs}/customers_cols.feather")
         .rename(columns=falcon_rename))
+
 else: 
     b_blob = gold_container.get_blob_client(f"{at_specs}/customers_specs_latest.feather")
     b_data = b_blob.download_blob()
@@ -271,13 +272,12 @@ else:
     b_strm.seek(0)
     customers_specs = (pd.read_feather(b_strm)
         .rename(columns=falcon_rename))
-
+    
 customers_specs.loc[1, 'column'] = 'modelSTUB' if w_stub else 'RBTRAN'
-
 cis_longname = '~'.join(row_name(rr) for _, rr in customers_specs.iterrows())
 cis_name = cis_longname if COL_DEBUG else 'cis-columna-fixed-width'
 
-name_onecol = '~'.join(row_name(rr)       
+name_onecol = '~'.join(row_name(rr)       # pylint: disable=invalid-name
     for _, rr in customers_specs.iterrows())
 
 gender_df_2 = spark.createDataFrame([
@@ -294,7 +294,7 @@ customers_0 = EpicDF(spark, dbks_tables['clients'])
 customers_1 = (one_customers(customers_0)
     .join(x_customers(customers_0), on='client_id')
     .with_column_plus(customers_extract['clients'])
-    .with_column_plus(customers_extract['clients_x'])
+    #.with_column_plus(customers_extract['clients_x']) # no existe en blob
     .with_column_plus(customers_extract['_val'])
     .with_column_plus(customers_extract['None'])
     .join(gender_df_2, on='gender').drop('gender')
@@ -307,6 +307,8 @@ customers_3 = (customers_2
     .select(customers_onecol)
     .prep_one_col(header_info=headfooters[('customer', 'header')],
                  trailer_info=headfooters[('customer', 'footer')]))
+
+# customers_3.display()
 
 customers_3.save_as_file(
     f"{app_abfss}/reports/customers/{cust_time}.csv",

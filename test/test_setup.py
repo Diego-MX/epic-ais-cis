@@ -49,6 +49,7 @@ class Test:
     def get_principal(self) -> dict: # Obtención de credenciales para poder acceder
         """Obtención de la credencial del principal para acceder a otras instancias"""
         agent = cfg.SETUP_KEYS[cfg.ENV]
+
         dbks_scope = agent["databricks-scope"]
         lam_secret = lambda ss: dbutils.secrets.get(dbks_scope, ss)
         principal = dtoolz.valmap(lam_secret, agent["service-principal"])
@@ -211,8 +212,8 @@ class Test:
 
         assert columns_feather!=[],"No se encontro el feather paymonts"
 
+Pruebas = Test()
+ACTIVO = Pruebas.get_principal()
 
-# Pruebas = Test()
-# ACTIVO = Pruebas.test_keyvault()
-# print(ACTIVO)
-"""End-of-file (EOF)"""
+# End-of-file (EOF)
+
