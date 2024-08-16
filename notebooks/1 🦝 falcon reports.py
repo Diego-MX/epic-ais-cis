@@ -308,7 +308,7 @@ customers_3 = (customers_2
     .prep_one_col(header_info=headfooters[('customer', 'header')],
                  trailer_info=headfooters[('customer', 'footer')]))
 
-# customers_3.display()
+customers_3.display()
 
 customers_3.save_as_file(
     f"{app_abfss}/reports/customers/{cust_time}.csv",

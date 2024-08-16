@@ -1,10 +1,12 @@
 .env
+user_databricks.json
 
 .vscode
+**.pylintrc
 
 **__pycache__**
-**.pylintrc
 **.DS_Store**
 
 **.csv**
 **.pytest_cache**
+
