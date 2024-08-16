@@ -3,7 +3,6 @@
 from epic_py.platform import EpicIdentity
 import config as cfg
 
-
 app_agent = EpicIdentity.create(server=cfg.SERVER, config=cfg.SETUP_KEYS[cfg.ENV]) 
 app_resourcer = app_agent.get_resourcer(cfg.AZURE_RESOURCES[cfg.ENV], check_all=False)
 app_path = app_resourcer['storage-paths']['fraud']

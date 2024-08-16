@@ -179,14 +179,31 @@ for file in folder:
 
 # COMMAND ----------
 
+ruta = "abfss://gold@stlakehyliaqas.dfs.core.windows.net/ops/fraud-prevention/reports/customers/"
+ruta = "abfss://raw@stlakehyliaqas.dfs.core.windows.net/ops/core-banking/conciliations/cloud-banking"
+folder = dbutils.fs.ls(ruta)
+
+# for archivo in folder:
+#     print(archivo.name,archivo.path)
+
+import re 
+cadena = "CONCILIAFZE0220230104"
+
+# Expresión regular para encontrar números
+numeros = re.findall(r'\d+', cadena)
+
+print(numeros)
+
+# file = spark.read.format("csv").option("delimiter", "|").load(ruta+"/CONCILIAFZE0220230104.txt")
+
+# file.display()
+
+# COMMAND ----------
+
 # MAGIC %md
 # MAGIC ### cosas no relevantes para el código pero si para el aprendizaje, borrar cuando se haya llevado a la librería correspondiente 
 
 # COMMAND ----------
-
-# refs/upload-specs/customers_cols.feather 
-# ops/fraud-prevention/specs/customers_specs_latest.feather 
-# ops/fraud-prevention/specs/customers_2024-08-09_16:04.feather
 
 # {{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
 # blobs=reservorio.list_blobs() # en lista los blobs 
