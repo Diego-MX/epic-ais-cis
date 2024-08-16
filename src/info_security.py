@@ -5,7 +5,6 @@ Read specs from Excel file and upload to blob file.
 from datetime import datetime as dt
 import sys
 
-
 from dotenv import load_dotenv
 import pandas as pd
 from pytz import timezone
