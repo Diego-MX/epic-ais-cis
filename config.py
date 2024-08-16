@@ -3,7 +3,7 @@ import os
 
 REQS_FILE = '../pip_reqs.txt'
 USER_FILE = '../user_databricks.yml'
-EPIC_REF = 'gh-1.4' 
+EPIC_REF = 'gh-1.4'
 V_TYPING = '4.7.1'
 
 ## Infrastructure resources are defined here.
@@ -71,6 +71,7 @@ AZURE_RESOURCES = {
 DBKS_MAPPING = { # Key from Excel Refs, Value on DBKS metastore.
     'clients' : 'star_schema.dim_client',  # 
     'accounts': 'star_schema.current_account_x'}
+
 
 ENV = os.getenv('ENV_TYPE')
 SERVER = os.getenv('SERVER_TYPE')

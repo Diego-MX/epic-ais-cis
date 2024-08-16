@@ -12,19 +12,19 @@ from subprocess import check_call
 from pkg_resources import working_set
 
 from pyspark.dbutils import DBUtils     # pylint: disable=no-name-in-module
-from pyspark.sql import SparkSession 
+from pyspark.sql import SparkSession
 
-import config 
+import config
 
 
 has_yaml = 'yaml' in working_set.by_key
 
-def from_reqsfile(a_file=None): 
+def from_reqsfile(a_file=None):
     a_file = a_file or config.REQS_FILE
     pip_install('-r', a_file)
     return 
 
-def gh_epicpy(ref=None, tokenfile=None, typing=None, verbose=False): 
+def gh_epicpy(ref=None, tokenfile=None, typing=None, verbose=False):
     if typing: 
         v_typing = config.V_TYPING if typing is True else typing
         pip_install('--upgrade', f"typing-extensions=={v_typing}")

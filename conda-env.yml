@@ -3,6 +3,7 @@
 #
 # Los ambientes de Conda los gestionamos por tipo de repositorio 
 # en las computadoras de desarrollo. 
+name: fraud 
 
 channels: 
   - defaults
