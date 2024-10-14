@@ -6,7 +6,7 @@ import config as cfg
 
 load_dotenv(override=True)
 
-FILE_REF = "refs/Security Info.xlsx.lnk"
+FILE_REF = "refs/data/Security Info.xlsx.lnk"
 
 ENV = os.getenv('ENV_TYPE')
 SERVER = os.getenv('SERVER_TYPE')

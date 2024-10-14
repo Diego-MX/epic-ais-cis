@@ -32,12 +32,12 @@ deps.install_reqs()
 from datetime import datetime as dt
 from io import BytesIO
 from operator import methodcaller as ϱ
-from pytz import timezone as tz
 
 import matplotlib.pyplot as plt
 import pandas as pd
 from pyspark.sql import functions as F, Row, SparkSession
 from pyspark.dbutils import DBUtils     
+from pytz import timezone as tz
 from toolz import pipe, remove
 from toolz.curried import map as map_z
 
@@ -161,10 +161,6 @@ accounts_transform = (lambda accs_df: accs_df
 
 # COMMAND ----------
 
-dbks_tables['accounts']
-
-# COMMAND ----------
-
 acct_time = get_time()
 
 if specs_local: 
@@ -223,8 +219,8 @@ accounts_3.save_as_file(
 # MAGIC La columna original para tomar la información del cliente era `gld_client_file`.  
 # MAGIC Esta fue eliminada sin aviso y por eso empezó a fallar todo.  
 # MAGIC La tabla equivalente es `star_schema.dim_client`.  
-# MAGIC Aunque se supone que tiene más estructura que la anterior, la realidad es que no está bien hecha.  
-# MAGIC
+# MAGIC Aunque se supone que tiene más estructura que la anterior, la realidad es 
+# MAGIC que no está bien hecha.  
 # MAGIC El _hack_ se compone de lo siguiente:  
 # MAGIC * Mapeo de columnas `prep_columns`.  
 # MAGIC * Un increíble _pivoteo_ de columnas de `kyc`.  

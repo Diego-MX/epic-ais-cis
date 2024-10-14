@@ -76,7 +76,7 @@ notes = [ "FIXME", "XXX", "TODO",]
 [tool.pylint.refactoring]
 max-nested-blocks = 5
 never-returning-functions = [ "sys.exit", "argparse.parse_error",]
-suggest-join-with-non-empty-separator = true
+# suggest-join-with-non-empty-separator = true
 
 [tool.pylint.reports]
 evaluation = "max(0, 0 if fatal else 10.0 - ((float(5 * error + warning + refactor + convention) / statement) * 10))"

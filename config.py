@@ -13,6 +13,7 @@ La correspondencia con variables en '.env' es mediante:
 REQS_FILE = 'pip_reqs.txt'
 USER_FILE = 'user_databricks.json'
 
+
 ## Infrastructure resources are defined here.
 SETUP_KEYS = {
     'dev': {
