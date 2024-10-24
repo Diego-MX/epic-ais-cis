@@ -300,7 +300,7 @@ def x_customers(df_0):
 # MAGIC Hoy 23 de octubre del 2024 ocurrió que la tabla de dim_client fue modificada, nos percatamos al ejecutar el presente repositorio. Después de una busqueda se pudo encontrar la información faltante en la tabla dim_client_kyc por lo que se procede hacer un parche para que todo funcione como debe de funcionar
 # MAGIC
 # MAGIC                                         _nnnn_                      
-# MAGIC                                         dGGGGMMb     ,"""""""""""""".
+# MAGIC                                        dGGGGMMb     ,"""""""""""""".
 # MAGIC                                       @p~qp~~qMb    | Linux Rules! |
 # MAGIC                                       M|@||@) M|   _;..............'
 # MAGIC                                       @,----.JM| -'
