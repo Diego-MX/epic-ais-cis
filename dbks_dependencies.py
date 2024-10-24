@@ -16,7 +16,6 @@ from pyspark.sql import SparkSession
 
 import config
 
-
 has_yaml = 'yaml' in working_set.by_key
 
 def from_reqsfile(a_file=None):
@@ -36,7 +35,6 @@ def gh_epicpy(ref=None, tokenfile=None, typing=None, verbose=False):
     if verbose: 
         import epic_py
         dumper = {'Epic Ref': ref, 'Epic Ver': epic_py.__version__}
-        print(dumps(dumper))
     return
     
 def token_from_userfile(userfile=config.USER_FILE):
@@ -50,5 +48,4 @@ def token_from_userfile(userfile=config.USER_FILE):
 def pip_install(*args): 
     check_call(['pip', 'install', *args])
     return
-
 
