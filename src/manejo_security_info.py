@@ -1,8 +1,11 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # IRP_Juan
-# MAGIC
-# MAGIC Este _notebook_ funciona como el espacio que requiero para poder hacer mis **investigaciones**, **reparaciones** y **pruebas** por eso se llama IRP
+# MAGIC # Manejo de Archivos 
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC > El código tiene la función, de acomodar los archivos que se encuentran en la ruta `dbfs:/user/hive/warehouse/default` al **blob** correspondiente. En este caso se manejan los archivos de relevancia para el código `info_security.py`
 
 # COMMAND ----------
 
@@ -39,7 +42,6 @@ dbutils=DBUtils(spark)
 
 # COMMAND ----------
 
-
 account = cfg.AZURE_RESOURCES[cfg.ENV]["storage"]
 agent = cfg.SETUP_KEYS[cfg.ENV]
 container = "gold"
@@ -56,7 +58,6 @@ url = "https://stlakehyliaqas.blob.core.windows.net"
 # MAGIC ### Tras bambalinas
 
 # COMMAND ----------
-
 
 class Sabe():
     def __init__(self, contenedor:str, cuenta:str, 
@@ -78,7 +79,6 @@ class Sabe():
 
         df = (spark.read.format("delta")
               .load(path, header=True, inferSchema=True))
-        
         
         pandas_df = df.toPandas()
         feather_buffer = io.BytesIO()
@@ -135,7 +135,6 @@ class Sabe():
         listo = "_"+ajustado.strftime('%Y-%m-%d %H:%M').replace(" ","_")
         return listo
 
-
 # COMMAND ----------
 
 # MAGIC %md
@@ -151,7 +150,6 @@ for file in folder:
     if file.name in files_star:
         name=file.name.replace("_cols/","")
         file_update=sabe.subida_datos(name,file.modificationTime)
-
 
 # COMMAND ----------
 
@@ -180,9 +178,9 @@ for file in folder:
 # COMMAND ----------
 
 ruta = "abfss://gold@stlakehyliaqas.dfs.core.windows.net/ops/fraud-prevention/reports/customers/"
-ruta = "abfss://raw@stlakehyliaqas.dfs.core.windows.net/ops/core-banking/conciliations/cloud-banking"
+ruta = "abfss://gold@stlakehyliaqas.dfs.core.windows.net/ops/fraud-prevention/specs/payments_specs_latest.feather"
 folder = dbutils.fs.ls(ruta)
-
+print(folder)
 # for archivo in folder:
 #     print(archivo.name,archivo.path)
 
@@ -197,48 +195,3 @@ print(numeros)
 # file = spark.read.format("csv").option("delimiter", "|").load(ruta+"/CONCILIAFZE0220230104.txt")
 
 # file.display()
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ### cosas no relevantes para el código pero si para el aprendizaje, borrar cuando se haya llevado a la librería correspondiente 
-
-# COMMAND ----------
-
-# {{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
-# blobs=reservorio.list_blobs() # en lista los blobs 
-# dbutils.fs.rm("abfss://gold@stlakehyliaqas.dfs.core.windows.net/ops/fraud-prevention/specs/accounts_cols_posible.feather/", recurse=True) # borra carpetas
-# df = spark.read.format("delta").load("dbfs:/user/hive/warehouse/accounts_cols/")
-
-
-
-# # Convierte el DataFrame de Spark a Pandas
-# pandas_df = df.toPandas()
-
-# # # Guarda el DataFrame de Pandas en formato Feather
-# buffer = BytesIO()
-# feather.write_feather(pandas_df, buffer)
-# buffer.seek(0)
-
-# # # Inicializa el cliente de Blob Service
-# b_service = BlobServiceClient(self.url, self.credencial)
-# reservorio = b_service.get_container_client(self.contenedor)
-# blob_client = reservorio.get_blob_client(blob_path)
-
-# # # Subir el archivo
-# blob_client.upload_blob(buffer, overwrite=True)
-
-# print(f"Archivo Feather guardado en: {blob_path}")
-
-
-# ###################################################################
-
-# prefijo = "ops/fraud-prevention/specs/accounts_cols_posible.feather/"
-# blob_list = reservorio.list_blobs(name_starts_with=prefijo)
-
-# for blob in blob_list:
-#     blob_client = reservorio.get_blob_client(blob.name)
-#     blob_client.delete_blob()
-#     print(f"Blob eliminado: {blob.name}")
-
-###################################################################

@@ -42,7 +42,6 @@ from toolz.curried import map as map_z
 from epic_py.delta import EpicDF, EpicDataBuilder, TypeHandler
 from epic_py.tools import dirfiles_df, partial2
 
-
 from src import (app_agent, app_resourcer, app_abfss, app_path,
     dbks_tables, falcon_types, falcon_rename)
 from src.head_foot import headfooters   
@@ -98,14 +97,15 @@ dlk_permissions = app_agent.prep_dbks_permissions(datalake, 'gen2')
 app_resourcer.set_dbks_permissions(dlk_permissions)
 
 
+
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC # Cuentas  
+# MAGIC ## Cuentas  
 # MAGIC
 # MAGIC Se tienen que transformar los tipos de cuenta de acuerdo a los siguientes esquema: 
 # MAGIC
-# MAGIC ## Para Fiserv
+# MAGIC ### Para Fiserv
 # MAGIC Los siguientes tipos de cuenta se definen en las especificaciones de Excel. 
 # MAGIC
 # MAGIC | Clave | Descripción                  |
@@ -126,7 +126,7 @@ app_resourcer.set_dbks_permissions(dlk_permissions)
 # MAGIC | B     | Brokerage
 # MAGIC | O     | Other Deposit Accounts (Annuity, Life Insurance, and so on)
 # MAGIC
-# MAGIC ## Accounts Tiene  
+# MAGIC ### Accounts Tiene  
 # MAGIC Los siguientes tipos de productos se obtienen de la tabla de `current_account` como sigue: 
 # MAGIC ```python
 # MAGIC the_products = (spark.read.table('current_account')
@@ -192,7 +192,7 @@ accounts_loader = falcon_builder.get_loader(accounts_specs, 'fixed-width')
 accounts_onecol = (F.concat(*accounts_specs['name'].values)
     .alias(ais_name))
 
-accounts_0 = accounts_transform(EpicDF(spark, dbks_tables['accounts']))
+accounts_0 = accounts_transform(EpicDF(spark, dbks_tables['accounts'])) # Línea Problema se debe de cambiar desde epic_py
 
 accounts_1 = (accounts_0
     .select_plus(accounts_extract['accounts'])
@@ -212,6 +212,43 @@ accounts_3.save_as_file(
     f"{app_abfss}/reports/accounts/{acct_time}.csv",
     f"{app_abfss}/reports/accounts/tmp_delta",
     header=False, ignoreTrailingWhiteSpace=False, ignoreLeadingWhiteSpace=False)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Resultados
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ###   1.  Longitud de filas 
+
+# COMMAND ----------
+
+print("Filas AIS-post escritura")
+post_ais = (spark.read.format('csv')
+    .load(f"{app_abfss}/reports/accounts/{acct_time}.csv"))
+    
+ais_inf = (post_ais
+    .select(F.length('_c0').alias('ais_longitud'))
+    .groupBy('ais_longitud')
+    .count())
+
+ais_inf.display()
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### 2. Exploración de archivos
+
+# COMMAND ----------
+
+ais_path = f"{app_abfss}/reports/accounts/"
+print(f"""
+AIS Path:\t{ais_path}
+(horario UTC)"""[1:])
+(dirfiles_df(ais_path, spark)   
+    .loc[:, ['name', 'modificationTime', 'size']])
 
 # COMMAND ----------
 
@@ -243,17 +280,52 @@ def x_customers(df_0):
     kyc_cols = {'OCCUPATION': 'x_occupation', 
             'SOURCEOFINCOME': 'x_src_income'}
     kyc_df = (df_0
-        .select('client_id', 'kyc_id', 'kyc_answer')
-        .groupBy('client_id')
-        .pivot('kyc_id', list(kyc_cols.keys()))
-        .agg(F.first('kyc_answer'))
-        .withColumnsRenamed(kyc_cols))
+       .select('client_id', 'kyc_id', 'kyc_answer')
+       .groupBy('client_id')
+       .pivot('kyc_id', list(kyc_cols.keys()))
+       .agg(F.first('kyc_answer'))
+       .withColumnsRenamed(kyc_cols))
     df_1 = (df_0
         .withColumn('x_address', F.concat_ws(" ", "addr_street", "addr_external_number"))
         .select('client_id', 'x_address')
         .groupBy('client_id').agg(agg_one('x_address'))
         .join(kyc_df, 'client_id', how='left'))
     return df_1
+
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Parches Locos.  
+# MAGIC Hoy 23 de octubre del 2024 ocurrió que la tabla de dim_client fue modificada, nos percatamos al ejecutar el presente repositorio. Después de una busqueda se pudo encontrar la información faltante en la tabla dim_client_kyc por lo que se procede hacer un parche para que todo funcione como debe de funcionar
+# MAGIC
+# MAGIC                                         _nnnn_                      
+# MAGIC                                         dGGGGMMb     ,"""""""""""""".
+# MAGIC                                       @p~qp~~qMb    | Linux Rules! |
+# MAGIC                                       M|@||@) M|   _;..............'
+# MAGIC                                       @,----.JM| -'
+# MAGIC                                       JS^\__/  qKL
+# MAGIC                                     dZP        qKRb
+# MAGIC                                     dZP          qKKb
+# MAGIC                                   fZP            SMMb. 
+# MAGIC                                   HZM            MMMM. 
+# MAGIC                                   FqM            MMMM. 
+# MAGIC                                 __| ".        |\dS"qML. 
+# MAGIC                                 |    `.       | `' \Zq.  
+# MAGIC                                 _)      \.___.,|     .' 
+# MAGIC                                 \____   )MMMMMM|   .'  
+# MAGIC                                     `-'       `--' hjm. 
+# MAGIC
+# MAGIC
+
+# COMMAND ----------
+
+# PARCHES LOCOS
+def parche_tablas(df_data):
+    df_kyc = spark.read.table("qas.star_schema.dim_client_kyc")
+    df_kyc_select = df_kyc.select("client_id", "kyc_id", "kyc_answer")
+    df_return = df_data.join(df_kyc_select, "client_id", how="left")
+    return df_return
 
 
 # COMMAND ----------
@@ -290,6 +362,7 @@ customers_onecol  = (F.concat(*customers_specs['name'].values)
     .alias(cis_name))
 
 customers_0 = EpicDF(spark, dbks_tables['clients'])
+customers_0 = parche_tablas(customers_0)
 
 customers_1 = (one_customers(customers_0)
     .join(x_customers(customers_0), on='client_id')
@@ -314,6 +387,41 @@ customers_3.save_as_file(
     f"{app_abfss}/reports/customers/{cust_time}.csv",
     f"{app_abfss}/reports/customers/tmp_delta",
     header=False, ignoreTrailingWhiteSpace=False, ignoreLeadingWhiteSpace=False)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Resultados
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### 1. Longitud de filas  
+
+# COMMAND ----------
+
+print("Filas CIS-post escritura")
+post_cis = (spark.read.format('csv')
+    .load(f"{app_abfss}/reports/customers/{cust_time}.csv"))
+cis_inf = (post_cis
+    .select(F.length('_c0').alias('cis_longitud'))
+    .groupBy('cis_longitud')
+    .count())
+cis_inf.display()
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### 2. Exploración de Archivos
+
+# COMMAND ----------
+
+cis_path = f"{app_abfss}/reports/customers/"
+print(f"""
+CIS Path:\t{cis_path}
+(horario UTC)"""[1:])
+(dirfiles_df(cis_path, spark)   
+    .loc[:, ['name', 'modificationTime', 'size']])
 
 # COMMAND ----------
 
@@ -351,37 +459,8 @@ if haz_pagos:
 
 # COMMAND ----------
 
-# MAGIC %md
-# MAGIC # Resultados
-
-# COMMAND ----------
-
 # MAGIC %md 
-# MAGIC ## 1. Longitud de filas
-
-# COMMAND ----------
-
-print("Filas AIS-post escritura")
-post_ais = (spark.read.format('csv')
-    .load(f"{app_abfss}/reports/accounts/{cust_time}.csv"))
-    
-ais_inf = (post_ais
-    .select(F.length('_c0').alias('ais_longitud'))
-    .groupBy('ais_longitud')
-    .count())
-
-ais_inf.display()
-
-# COMMAND ----------
-
-print("Filas CIS-post escritura")
-post_cis = (spark.read.format('csv')
-    .load(f"{app_abfss}/reports/customers/{cust_time}.csv"))
-cis_inf = (post_cis
-    .select(F.length('_c0').alias('cis_longitud'))
-    .groupBy('cis_longitud')
-    .count())
-cis_inf.display()
+# MAGIC ## Resultados Gráficos 
 
 # COMMAND ----------
 
@@ -390,45 +469,27 @@ ais_long = ais_inf.collect()[0]["ais_longitud"]
 cis_cnts = cis_inf.collect()[0]["count"]
 cis_long = cis_inf.collect()[0]["cis_longitud"]
 
-name = ["AIS","CIS"]
-count = [ais_cnts,cis_cnts]
-long = [ais_long,cis_long]
-color = ["blue","red"]
 
-name2 = []; name3 = []
+name = ["AIS","CIS"]
+count = [ais_cnts, cis_cnts]
+long = [ais_long, cis_long]
+color = ["#f57c10","#17202a"]
+name2 = []# "COUNT" "LONG"
 
 for i in range(0,len(name),1):
-    name2.append(name[i]+" - "+str(count[i]))
-    name3.append(name[i]+" - "+str(long[i]))
-    
-fig,ax = plt.subplots(1,2,figsize = (9,3),sharey = False)
-ax[0].bar(name,count,label = name2, color = color)
-ax[0].legend()
-ax[1].bar(name,long,label = name3,color = color)
-ax[1].legend()
+    name2.append(str(name[i])+" -> "+str(count[i])+" -> "+str(long[i]))
 
+fig, ax = plt.subplots(figsize = (3,5))
+
+plt.title("AIS & CIS")
+plt.bar(name, count, label = name2, color = color, width = 1)
+plt.grid(color = "black", linestyle= ":", linewidth = 0.2, which = "major")
+plt.ylabel("Counts -> Accounts & Customers")
+plt.xlabel("Name -> Counts -> Longitude")
+plt.legend()
 plt.show()
 
 
 # COMMAND ----------
 
-# MAGIC %md 
-# MAGIC ## 2. Exploración de archivos
 
-# COMMAND ----------
-
-cis_path = f"{app_abfss}/reports/customers/"
-print(f"""
-CIS Path:\t{cis_path}
-(horario UTC)"""[1:])
-(dirfiles_df(cis_path, spark)   
-    .loc[:, ['name', 'modificationTime', 'size']])
-
-# COMMAND ----------
-
-ais_path = f"{app_abfss}/reports/accounts/"
-print(f"""
-AIS Path:\t{ais_path}
-(horario UTC)"""[1:])
-(dirfiles_df(ais_path, spark)   
-    .loc[:, ['name', 'modificationTime', 'size']])

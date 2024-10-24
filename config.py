@@ -2,7 +2,7 @@
 import os
 
 REQS_FILE = '../pip_reqs.txt'
-USER_FILE = '../user_databricks.yml'
+USER_FILE = 'user_databricks.json'
 EPIC_REF = 'gh-1.4'
 V_TYPING = '4.7.1'
 
@@ -18,7 +18,7 @@ SETUP_KEYS = {
         'databricks-scope': 'eh-core-banking',
         'github-access': 'github-access-token', 
         'service-principal': { 
-            'client_id'      : 'sp-core-events-client',       #'QAS_SP_CLIENT',
+            'client_id'      : 'sp-core-events-client',       #'QAS_SP_CLIENT', # Cambio juan 
             'client_secret'  : 'sp-core-events-secret',       #'QAS_SP_SECRET',
             'subscription_id': 'sp-core-events-subscription', #'QAS_SP_SUBSTN',
             'tenant_id'      : 'aad-tenant-id'}},             #'AAD_TENANT'},
@@ -28,7 +28,7 @@ SETUP_KEYS = {
         'github-access': 'github-access-token', 
             'client_id'      : 'sp-core-events-client',         #'QAS_SP_CLIENT',
             'client_secret'  : 'sp-core-events-secret',         #'QAS_SP_SECRET', 
-            'subscription_id': 'sp-core-events-suscription',    #'QAS_SP_SUBSTN', 
+            'subscription_id': 'sp-core-events-subscription',    #'QAS_SP_SUBSTN', 
             'tenant_id'      : 'aad-tenant-id'}},               #'AAD_TENANT'}, 
     'prd': {
         'github-access': 'github-access-token', 
@@ -37,8 +37,7 @@ SETUP_KEYS = {
             'client_id'      : 'sp-collections-client', # 
             'client_secret'  : 'sp-collections-secret', #          
             'subscription_id': 'sp-collections-subscription', # 
-            'tenant_id'      : 'aad-tenant-id'}},
-}
+            'tenant_id'      : 'aad-tenant-id'}}}
 
 AZURE_RESOURCES = {
     'qas': {
@@ -51,22 +50,19 @@ AZURE_RESOURCES = {
             'server': 'sqlserver-lakehylia-data-qas', 
             'database': 'lakehylia_metastore_qas', 
             'user': 'sqlAdministratorLoginUserMetastore', 
-            'password': 'sqlAdministratorLoginPwdMetastore'}
-        }}, 
+            'password': 'sqlAdministratorLoginPwdMetastore'}}}, 
     'stg': {
         'keyvault' : 'kv-cx-data-stg',
         'storage'  : 'stlakehyliastg', 
         'storage-paths': {
             'fraud': "ops/fraud-prevention", 
-            'core-banking': "ops/core-banking-x/current-account"
-        }},  
+            'core-banking': "ops/core-banking-x/current-account"}},  
     'prd': {
         'keyvault' : 'kv-cx-data-prd',
         'storage'  : 'stlakehyliaprd',
         'storage-paths': {
             'fraud': "ops/fraud-prevention", 
-            'core-banking': "ops/core-banking-x/current-account"
-} } }
+            'core-banking': "ops/core-banking-x/current-account"}}}
 
 DBKS_MAPPING = { # Key from Excel Refs, Value on DBKS metastore.
     'clients' : 'star_schema.dim_client',  # 
