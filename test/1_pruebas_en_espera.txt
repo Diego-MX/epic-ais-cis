@@ -1,0 +1,39 @@
+    def test_feather_exist(self):
+        """Comprueba sí el feather existe"""
+        add_abfss = self.get_abfss()
+        folder = dbutils.fs.ls(add_abfss)
+
+        assert folder != [],"No hay archivos en la carpeta"
+        for file in folder:
+            if file.name.endswith('cols.feather'):
+                assert file.name.endswith('cols.feather'), "No es un archivo feather!"
+
+    def test_specs_content(self):
+        """Revisa que el feather contenido en la carpeta specs contenga información"""
+        container =self.get_storage_client(None,"gold")
+        add_abfss = self.get_abfss()
+        folder = dbutils.fs.ls(add_abfss+"/specs") # ruta que apunta a la carpeta specs
+        # 
+        folder = dbutils.fs.ls(add_abfss)
+        # # ruta que apunta a la carpeta fraud-prevention, las dos son validas
+
+        for i in folder:
+            print(i)
+
+        for file in folder:
+            """Sí se retira el if lee otros archivos y se rompe"""
+            if file.name.endswith("latest.feather"):
+                print(file.name)
+                data = self.get_blob_df(container,file.name)
+                assert not data.empty, "El blob se encuentra vacío 😱"
+
+    def test_specs_exist(self):
+        """Constata que el feather exista en la carpeta specs"""
+        add_abfss = self.get_abfss()
+        folder = dbutils.fs.ls(add_abfss)
+        container = self.get_storage_client(None,"gold")
+
+        for file in folder:
+            if file.name.endswith("latest.feather"):
+                b_blob = container.get_blob_client(add_abfss+"/specs/"+file.name)
+                assert isinstance(b_blob,BlobClient), "No es cliente del contenedor"
