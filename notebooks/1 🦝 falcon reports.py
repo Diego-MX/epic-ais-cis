@@ -362,7 +362,7 @@ customers_onecol  = (F.concat(*customers_specs['name'].values)
     .alias(cis_name))
 
 customers_0 = EpicDF(spark, dbks_tables['clients'])
-customers_0 = parche_tablas(customers_0)
+# customers_0 = parche_tablas(customers_0) Se bloque en PRD porque no se requiere
 
 customers_1 = (one_customers(customers_0)
     .join(x_customers(customers_0), on='client_id')
