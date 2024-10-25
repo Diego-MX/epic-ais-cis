@@ -464,30 +464,30 @@ if haz_pagos:
 
 # COMMAND ----------
 
-ais_cnts = ais_inf.collect()[0]["count"]
-ais_long = ais_inf.collect()[0]["ais_longitud"]
-cis_cnts = cis_inf.collect()[0]["count"]
-cis_long = cis_inf.collect()[0]["cis_longitud"]
+# ais_cnts = ais_inf.collect()[0]["count"]
+# ais_long = ais_inf.collect()[0]["ais_longitud"]
+# cis_cnts = cis_inf.collect()[0]["count"]
+# cis_long = cis_inf.collect()[0]["cis_longitud"]
 
 
-name = ["AIS","CIS"]
-count = [ais_cnts, cis_cnts]
-long = [ais_long, cis_long]
-color = ["#f57c10","#17202a"]
-name2 = []# "COUNT" "LONG"
+# name = ["AIS","CIS"]
+# count = [ais_cnts, cis_cnts]
+# long = [ais_long, cis_long]
+# color = ["#f57c10","#17202a"]
+# name2 = []# "COUNT" "LONG"
 
-for i in range(0,len(name),1):
-    name2.append(str(name[i])+" -> "+str(count[i])+" -> "+str(long[i]))
+# for i in range(0,len(name),1):
+#     name2.append(str(name[i])+" -> "+str(count[i])+" -> "+str(long[i]))
 
-fig, ax = plt.subplots(figsize = (3,5))
+# fig, ax = plt.subplots(figsize = (3,5))
 
-plt.title("AIS & CIS")
-plt.bar(name, count, label = name2, color = color, width = 1)
-plt.grid(color = "black", linestyle= ":", linewidth = 0.2, which = "major")
-plt.ylabel("Counts -> Accounts & Customers")
-plt.xlabel("Name -> Counts -> Longitude")
-plt.legend()
-plt.show()
+# plt.title("AIS & CIS")
+# plt.bar(name, count, label = name2, color = color, width = 1)
+# plt.grid(color = "black", linestyle= ":", linewidth = 0.2, which = "major")
+# plt.ylabel("Counts -> Accounts & Customers")
+# plt.xlabel("Name -> Counts -> Longitude")
+# plt.legend()
+# plt.show()
 
 
 # COMMAND ----------
