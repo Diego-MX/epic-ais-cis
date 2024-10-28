@@ -192,6 +192,7 @@ accounts_loader = falcon_builder.get_loader(accounts_specs, 'fixed-width')
 accounts_onecol = (F.concat(*accounts_specs['name'].values)
     .alias(ais_name))
 
+print(spark,dbks_tables["accounts"])
 accounts_0 = accounts_transform(EpicDF(spark, dbks_tables['accounts'])) # Línea Problema se debe de cambiar desde epic_py
 
 accounts_1 = (accounts_0
