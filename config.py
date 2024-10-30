@@ -65,7 +65,7 @@ AZURE_RESOURCES = {
             'core-banking': "ops/core-banking-x/current-account"}}}
 
 DBKS_MAPPING = { # Key from Excel Refs, Value on DBKS metastore.
-    'clients' : 'star_schema.dim_client',  # 
+    'clients' : 'star_schema.dim_client_new',  # 
     'accounts': 'star_schema.current_account_x'}
 
 

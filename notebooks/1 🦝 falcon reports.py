@@ -14,7 +14,7 @@
 # COMMAND ----------
 
 import dbks_dependencies as deps
-deps.gh_epicpy('meetme-1',  
+deps.gh_epicpy('meetme-1-j',  
     tokenfile='../user_databricks.json', typing=False, verbose=True)
 
 # COMMAND ----------
@@ -34,7 +34,7 @@ from pytz import timezone as tz
 
 import matplotlib.pyplot as plt
 import pandas as pd
-from pyspark.sql import functions as F, Row, SparkSession
+from pyspark.sql import functions as F, Row, SparkSession,DataFrame
 from pyspark.dbutils import DBUtils     
 from toolz import pipe, remove
 from toolz.curried import map as map_z
@@ -45,6 +45,8 @@ from epic_py.tools import dirfiles_df, partial2
 from src import (app_agent, app_resourcer, app_abfss, app_path,
     dbks_tables, falcon_types, falcon_rename)
 from src.head_foot import headfooters   
+
+from config import ENV # PARCHE MOMENTANEO DADO QUE LAS TABLAS SE MUEVEN >:l
 
 spark = SparkSession.builder.getOrCreate()
 dbutils = DBUtils(spark)
@@ -192,7 +194,6 @@ accounts_loader = falcon_builder.get_loader(accounts_specs, 'fixed-width')
 accounts_onecol = (F.concat(*accounts_specs['name'].values)
     .alias(ais_name))
 
-print(spark,dbks_tables["accounts"])
 accounts_0 = accounts_transform(EpicDF(spark, dbks_tables['accounts'])) # Línea Problema se debe de cambiar desde epic_py
 
 accounts_1 = (accounts_0
@@ -323,7 +324,7 @@ def x_customers(df_0):
 
 # PARCHES LOCOS
 def parche_tablas(df_data):
-    df_kyc = spark.read.table("qas.star_schema.dim_client_kyc")
+    df_kyc = spark.read.table(f"{ENV}.star_schema.dim_client_kyc")
     df_kyc_select = df_kyc.select("client_id", "kyc_id", "kyc_answer")
     df_return = df_data.join(df_kyc_select, "client_id", how="left")
     return df_return
@@ -362,8 +363,10 @@ customers_loader  = falcon_builder.get_loader(customers_specs, 'fixed-width')
 customers_onecol  = (F.concat(*customers_specs['name'].values)
     .alias(cis_name))
 
-customers_0 = EpicDF(spark, dbks_tables['clients'])
-customers_0 = parche_tablas(customers_0)  # SE BLOQUEA PORQUE NO SE UTILIZA EN PRD SOLO EN QAS
+customers_0 = EpicDF(spark, dbks_tables['clients']+"_new")
+
+if ENV == "qas":
+    customers_0 = parche_tablas(customers_0)  # SE BLOQUEA PORQUE NO SE UTILIZA EN PRD SOLO EN QAS
 
 customers_1 = (one_customers(customers_0)
     .join(x_customers(customers_0), on='client_id')
@@ -470,7 +473,6 @@ if haz_pagos:
 # cis_cnts = cis_inf.collect()[0]["count"]
 # cis_long = cis_inf.collect()[0]["cis_longitud"]
 
-
 # name = ["AIS","CIS"]
 # count = [ais_cnts, cis_cnts]
 # long = [ais_long, cis_long]
@@ -489,8 +491,4 @@ if haz_pagos:
 # plt.xlabel("Name -> Counts -> Longitude")
 # plt.legend()
 # plt.show()
-
-
-# COMMAND ----------
-
 
