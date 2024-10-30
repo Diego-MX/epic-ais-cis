@@ -14,7 +14,7 @@
 # COMMAND ----------
 
 import dbks_dependencies as deps
-deps.gh_epicpy('pj1',  
+deps.gh_epicpy('parche-1.1',  
     tokenfile='../user_databricks.json', typing=False, verbose=True)
 
 # COMMAND ----------
@@ -363,7 +363,7 @@ customers_loader  = falcon_builder.get_loader(customers_specs, 'fixed-width')
 customers_onecol  = (F.concat(*customers_specs['name'].values)
     .alias(cis_name))
 
-customers_0 = EpicDF(spark, dbks_tables['clients']+"_new")
+customers_0 = EpicDF(spark, dbks_tables['clients'])
 
 if ENV == "qas":
     customers_0 = parche_tablas(customers_0)  # SE BLOQUEA PORQUE NO SE UTILIZA EN PRD SOLO EN QAS
