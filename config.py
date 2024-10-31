@@ -64,10 +64,15 @@ AZURE_RESOURCES = {
             'fraud': "ops/fraud-prevention", 
             'core-banking': "ops/core-banking-x/current-account"}}}
 
-DBKS_MAPPING = { # Key from Excel Refs, Value on DBKS metastore.
-    'clients' : 'star_schema.dim_client',  # 
-    'accounts': 'star_schema.current_account_x'}
-
-
 ENV = os.getenv('ENV_TYPE')
 SERVER = os.getenv('SERVER_TYPE')
+
+if ENV == "qas":
+    DBKS_MAPPING = { # Key from Excel Refs, Value on DBKS metastore.
+    'clients' : 'star_schema.dim_client_new',  # 
+    'accounts': 'star_schema.current_account_x'}
+
+else:
+    DBKS_MAPPING = { # Key from Excel Refs, Value on DBKS metastore.
+    'clients' : 'star_schema.dim_client',  # 
+    'accounts': 'star_schema.current_account_x'}
