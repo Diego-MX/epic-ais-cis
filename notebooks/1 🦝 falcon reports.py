@@ -14,7 +14,8 @@
 # COMMAND ----------
 
 import dbks_dependencies as deps
-deps.gh_epicpy('parche-1.1',  
+
+deps.gh_epicpy('meetme-1',  
     tokenfile='../user_databricks.json', typing=False, verbose=True)
 
 # COMMAND ----------
@@ -332,6 +333,10 @@ def parche_tablas(df_data):
 
 # COMMAND ----------
 
+dbks_tables['clients']
+
+# COMMAND ----------
+
 cust_time = get_time()
 
 if specs_local: 
@@ -491,4 +496,3 @@ if haz_pagos:
 # plt.xlabel("Name -> Counts -> Longitude")
 # plt.legend()
 # plt.show()
-

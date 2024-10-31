@@ -64,7 +64,6 @@ AZURE_RESOURCES = {
             'fraud': "ops/fraud-prevention", 
             'core-banking': "ops/core-banking-x/current-account"}}}
 
-
 ENV = os.getenv('ENV_TYPE')
 SERVER = os.getenv('SERVER_TYPE')
 
