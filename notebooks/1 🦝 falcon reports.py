@@ -14,6 +14,7 @@
 # COMMAND ----------
 
 import dbks_dependencies as deps
+
 deps.gh_epicpy('meetme-1',  
     tokenfile='../user_databricks.json', typing=False, verbose=True)
 
@@ -34,7 +35,7 @@ from pytz import timezone as tz
 
 import matplotlib.pyplot as plt
 import pandas as pd
-from pyspark.sql import functions as F, Row, SparkSession
+from pyspark.sql import functions as F, Row, SparkSession,DataFrame
 from pyspark.dbutils import DBUtils     
 from toolz import pipe, remove
 from toolz.curried import map as map_z
@@ -45,6 +46,8 @@ from epic_py.tools import dirfiles_df, partial2
 from src import (app_agent, app_resourcer, app_abfss, app_path,
     dbks_tables, falcon_types, falcon_rename)
 from src.head_foot import headfooters   
+
+from config import ENV # PARCHE MOMENTANEO DADO QUE LAS TABLAS SE MUEVEN >:l
 
 spark = SparkSession.builder.getOrCreate()
 dbutils = DBUtils(spark)
@@ -322,11 +325,15 @@ def x_customers(df_0):
 
 # PARCHES LOCOS
 def parche_tablas(df_data):
-    df_kyc = spark.read.table("qas.star_schema.dim_client_kyc")
+    df_kyc = spark.read.table(f"{ENV}.star_schema.dim_client_kyc")
     df_kyc_select = df_kyc.select("client_id", "kyc_id", "kyc_answer")
     df_return = df_data.join(df_kyc_select, "client_id", how="left")
     return df_return
 
+
+# COMMAND ----------
+
+dbks_tables['clients']
 
 # COMMAND ----------
 
@@ -362,7 +369,9 @@ customers_onecol  = (F.concat(*customers_specs['name'].values)
     .alias(cis_name))
 
 customers_0 = EpicDF(spark, dbks_tables['clients'])
-# customers_0 = parche_tablas(customers_0) Se bloque en PRD porque no se requiere
+
+if ENV == "qas":
+    customers_0 = parche_tablas(customers_0)  # SE BLOQUEA PORQUE NO SE UTILIZA EN PRD SOLO EN QAS
 
 customers_1 = (one_customers(customers_0)
     .join(x_customers(customers_0), on='client_id')
@@ -464,32 +473,26 @@ if haz_pagos:
 
 # COMMAND ----------
 
-ais_cnts = ais_inf.collect()[0]["count"]
-ais_long = ais_inf.collect()[0]["ais_longitud"]
-cis_cnts = cis_inf.collect()[0]["count"]
-cis_long = cis_inf.collect()[0]["cis_longitud"]
+# ais_cnts = ais_inf.collect()[0]["count"]
+# ais_long = ais_inf.collect()[0]["ais_longitud"]
+# cis_cnts = cis_inf.collect()[0]["count"]
+# cis_long = cis_inf.collect()[0]["cis_longitud"]
 
+# name = ["AIS","CIS"]
+# count = [ais_cnts, cis_cnts]
+# long = [ais_long, cis_long]
+# color = ["#f57c10","#17202a"]
+# name2 = []# "COUNT" "LONG"
 
-name = ["AIS","CIS"]
-count = [ais_cnts, cis_cnts]
-long = [ais_long, cis_long]
-color = ["#f57c10","#17202a"]
-name2 = []# "COUNT" "LONG"
+# for i in range(0,len(name),1):
+#     name2.append(str(name[i])+" -> "+str(count[i])+" -> "+str(long[i]))
 
-for i in range(0,len(name),1):
-    name2.append(str(name[i])+" -> "+str(count[i])+" -> "+str(long[i]))
+# fig, ax = plt.subplots(figsize = (3,5))
 
-fig, ax = plt.subplots(figsize = (3,5))
-
-plt.title("AIS & CIS")
-plt.bar(name, count, label = name2, color = color, width = 1)
-plt.grid(color = "black", linestyle= ":", linewidth = 0.2, which = "major")
-plt.ylabel("Counts -> Accounts & Customers")
-plt.xlabel("Name -> Counts -> Longitude")
-plt.legend()
-plt.show()
-
-
-# COMMAND ----------
-
-
+# plt.title("AIS & CIS")
+# plt.bar(name, count, label = name2, color = color, width = 1)
+# plt.grid(color = "black", linestyle= ":", linewidth = 0.2, which = "major")
+# plt.ylabel("Counts -> Accounts & Customers")
+# plt.xlabel("Name -> Counts -> Longitude")
+# plt.legend()
+# plt.show()
