@@ -1,5 +1,4 @@
 .env
-user_databricks.json
 
 .vscode
 **.pylintrc
