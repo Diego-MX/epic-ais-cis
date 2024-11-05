@@ -142,6 +142,8 @@ class EpicDF(EpicMixin, SpkDF):
 spark = SparkSession.builder.getOrCreate()
 RUTA = "qas.star_schema.current_account_x"
 
+EpicDF(spark,RUTA)
+
 # COMMAND ----------
 
 asi = spark.read.table(RUTA)
@@ -162,8 +164,3 @@ else:
 
 
 
-
-# COMMAND ----------
-
-
-EpicDF(spark,RUTA)

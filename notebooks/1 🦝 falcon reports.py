@@ -270,66 +270,7 @@ AIS Path:\t{ais_path}
 
 # COMMAND ----------
 
-agg_one = lambda cc: F.any_value(cc).alias(cc)
-    
-def one_customers(df_0): 
-    first_cols = pipe(df_0.columns, 
-        partial2(remove, ϱ('startswith', ('client_id', 'ben_', 'kyc_')), ...), 
-        map_z(agg_one))
-    df_1 = df_0.groupBy('client_id').agg(*first_cols)
-    return df_1
-
-def x_customers(df_0): 
-    kyc_cols = {'OCCUPATION': 'x_occupation', 
-            'SOURCEOFINCOME': 'x_src_income'}
-    kyc_df = (df_0
-       .select('client_id', 'kyc_id', 'kyc_answer')
-       .groupBy('client_id')
-       .pivot('kyc_id', list(kyc_cols.keys()))
-       .agg(F.first('kyc_answer'))
-       .withColumnsRenamed(kyc_cols))
-    df_1 = (df_0
-        .withColumn('x_address', F.concat_ws(" ", "addr_street", "addr_external_number"))
-        .select('client_id', 'x_address')
-        .groupBy('client_id').agg(agg_one('x_address'))
-        .join(kyc_df, 'client_id', how='left'))
-    return df_1
-
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ### Parches Locos.  
-# MAGIC Hoy 23 de octubre del 2024 ocurrió que la tabla de dim_client fue modificada, nos percatamos al ejecutar el presente repositorio. Después de una busqueda se pudo encontrar la información faltante en la tabla dim_client_kyc por lo que se procede hacer un parche para que todo funcione como debe de funcionar
-# MAGIC
-# MAGIC                                         _nnnn_                      
-# MAGIC                                        dGGGGMMb     ,"""""""""""""".
-# MAGIC                                       @p~qp~~qMb    | Linux Rules! |
-# MAGIC                                       M|@||@) M|   _;..............'
-# MAGIC                                       @,----.JM| -'
-# MAGIC                                       JS^\__/  qKL
-# MAGIC                                     dZP        qKRb
-# MAGIC                                     dZP          qKKb
-# MAGIC                                   fZP            SMMb. 
-# MAGIC                                   HZM            MMMM. 
-# MAGIC                                   FqM            MMMM. 
-# MAGIC                                 __| ".        |\dS"qML. 
-# MAGIC                                 |    `.       | `' \Zq.  
-# MAGIC                                 _)      \.___.,|     .' 
-# MAGIC                                 \____   )MMMMMM|   .'  
-# MAGIC                                     `-'       `--' hjm. 
-# MAGIC
-# MAGIC
-
-# COMMAND ----------
-
-# PARCHES LOCOS
-def parche_tablas(df_data):
-    df_kyc = spark.read.table(f"{ENV}.star_schema.dim_client_kyc")
-    df_kyc_select = df_kyc.select("client_id", "kyc_id", "kyc_answer")
-    df_return = df_data.join(df_kyc_select, "client_id", how="left")
-    return df_return
-
+dbks_tables['clients']
 
 # COMMAND ----------
 
@@ -370,12 +311,7 @@ customers_onecol  = (F.concat(*customers_specs['name'].values)
 
 customers_0 = EpicDF(spark, dbks_tables['clients'])
 
-if ENV == "qas":
-    customers_0 = parche_tablas(customers_0)  # SE BLOQUEA PORQUE NO SE UTILIZA EN PRD SOLO EN QAS
-
-customers_1 = (one_customers(customers_0)
-    .join(x_customers(customers_0), on='client_id')
-    .with_column_plus(customers_extract['clients'])
+customers_1 = (customers_0.with_column_plus(customers_extract['clients'])
     #.with_column_plus(customers_extract['clients_x']) # no existe en blob
     .with_column_plus(customers_extract['_val'])
     .with_column_plus(customers_extract['None'])
