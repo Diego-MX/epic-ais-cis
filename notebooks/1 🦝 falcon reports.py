@@ -268,7 +268,34 @@ AIS Path:\t{ais_path}
 # MAGIC * Mapeo de columnas `prep_columns`.  
 # MAGIC * Un increíble _pivoteo_ de columnas de `kyc`.  
 # MAGIC * Un filtrado de datos repetidos debido al desmadre que se hizo con `kyc`.  
+# MAGIC
 
+# COMMAND ----------
+
+agg_one = lambda cc: F.any_value(cc).alias(cc)
+
+def one_customers(df_0): 
+    first_cols = pipe(df_0.columns, 
+        partial2(remove, ϱ('startswith', ('client_id', 'ben_', 'kyc_')), ...), 
+        map_z(agg_one))
+    df_1 = df_0.groupBy('client_id').agg(*first_cols)
+    return df_1
+
+def x_customers(df_0): 
+    kyc_cols = {'OCCUPATION': 'x_occupation', 
+            'SOURCEOFINCOME': 'x_src_income'}
+    kyc_df = (df_0
+       .select('client_id', 'kyc_id', 'kyc_answer')
+       .groupBy('client_id')
+       .pivot('kyc_id', list(kyc_cols.keys()))
+       .agg(F.first('kyc_answer'))
+       .withColumnsRenamed(kyc_cols))
+    df_1 = (df_0
+        .withColumn('x_address', F.concat_ws(" ", "addr_street", "addr_external_number"))
+        .select('client_id', 'x_address')
+        .groupBy('client_id').agg(agg_one('x_address'))
+        .join(kyc_df, 'client_id', how='left'))
+    return df_1
 
 # COMMAND ----------
 
@@ -327,7 +354,9 @@ customers_0 = clean_caracter(customers_0)
 if ENV == "qas":
     customers_0 = parche_tablas(customers_0) # SE BLOQUEA PORQUE NO SE UTILIZA EN PRD SOLO EN QAS
 
-customers_1 = (customers_0.with_column_plus(customers_extract['clients'])
+customers_1 = (one_customers(customers_0)
+    .join(x_customers(customers_0), on='client_id')
+    .with_column_plus(customers_extract['clients'])
     #.with_column_plus(customers_extract['clients_x']) # no existe en blob
     .with_column_plus(customers_extract['_val'])
     .with_column_plus(customers_extract['None'])

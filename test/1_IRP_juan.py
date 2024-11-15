@@ -13,6 +13,46 @@
 
 # COMMAND ----------
 
+from pyspark.sql import SparkSession
+from pyspark.dbutils import DBUtils
+
+spark = SparkSession.builder.getOrCreate()
+dbutils = DBUtils(spark)
+root_original = "abfss://gold@stlakehyliaprd.dfs.core.windows.net/ops/fraud-prevention/reports/zipped/customers"
+files = dbutils.fs.ls(root_original)
+
+for ii in files:
+    print(ii.name)
+
+
+# COMMAND ----------
+
+search = spark.read.table("prd.star_schema.dim_client")
+search.filter(search.client_id =="1012574").display()
+# search.filter(search.client_id =="1013576").display()
+
+
+# COMMAND ----------
+
+
+from pyspark.sql.functions import regexp_replace, translate, col
+
+df_clean = search.select([regexp_replace(col(column), '"',"").alias(column) for column in search.columns])
+df_clean = df_clean.select([regexp_replace(col(column), ",", "").alias(column) for column in df_clean.columns])
+
+
+# COMMAND ----------
+
+
+# df_clean.filter(df_clean.client_id =="1012574").display()
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC NADA
+
+# COMMAND ----------
+
 # %pip install databricks-sdk --upgrade 
 # dbutils.library.restartPython()
 
