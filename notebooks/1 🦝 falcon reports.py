@@ -36,6 +36,7 @@ from pytz import timezone as tz
 import matplotlib.pyplot as plt
 import pandas as pd
 from pyspark.sql import functions as F, Row, SparkSession,DataFrame
+from pyspark.sql.functions import col, regexp_replace
 from pyspark.dbutils import DBUtils     
 from toolz import pipe, remove
 from toolz.curried import map as map_z
@@ -250,7 +251,7 @@ ais_path = f"{app_abfss}/reports/accounts/"
 print(f"""
 AIS Path:\t{ais_path}
 (horario UTC)"""[1:])
-(dirfiles_df(ais_path, spark)   
+(dirfiles_df(ais_path, spark)
     .loc[:, ['name', 'modificationTime', 'size']])
 
 # COMMAND ----------
@@ -268,9 +269,20 @@ AIS Path:\t{ais_path}
 # MAGIC * Un increíble _pivoteo_ de columnas de `kyc`.  
 # MAGIC * Un filtrado de datos repetidos debido al desmadre que se hizo con `kyc`.  
 
+
 # COMMAND ----------
 
-dbks_tables['clients']
+# PARCHES LOCOS
+def parche_tablas(df_data):
+    df_kyc = spark.read.table(f"{ENV}.star_schema.dim_client_kyc")
+    df_kyc_select = df_kyc.select("client_id", "kyc_id", "kyc_answer")
+    df_return = df_data.join(df_kyc_select, "client_id", how="left")
+    return df_return
+
+def clean_caracter(df_data):
+    df_clean = df_data.select([regexp_replace(col(column), '"',"").alias(column) for column in df_data.columns])
+    df_return = df_clean.select([regexp_replace(col(column), ",", "").alias(column) for column in df_clean.columns]) 
+    return df_return
 
 # COMMAND ----------
 
@@ -280,11 +292,11 @@ dbks_tables['clients']
 
 cust_time = get_time()
 
-if specs_local: 
+if specs_local:
     customers_specs = (pd.read_feather(f"{at_specs}/customers_cols.feather")
         .rename(columns=falcon_rename))
 
-else: 
+else:
     b_blob = gold_container.get_blob_client(f"{at_specs}/customers_specs_latest.feather")
     b_data = b_blob.download_blob()
     b_strm = BytesIO()
@@ -292,7 +304,7 @@ else:
     b_strm.seek(0)
     customers_specs = (pd.read_feather(b_strm)
         .rename(columns=falcon_rename))
-    
+
 customers_specs.loc[1, 'column'] = 'modelSTUB' if w_stub else 'RBTRAN'
 cis_longname = '~'.join(row_name(rr) for _, rr in customers_specs.iterrows())
 cis_name = cis_longname if COL_DEBUG else 'cis-columna-fixed-width'
@@ -310,6 +322,10 @@ customers_onecol  = (F.concat(*customers_specs['name'].values)
     .alias(cis_name))
 
 customers_0 = EpicDF(spark, dbks_tables['clients'])
+customers_0 = clean_caracter(customers_0)
+
+if ENV == "qas":
+    customers_0 = parche_tablas(customers_0) # SE BLOQUEA PORQUE NO SE UTILIZA EN PRD SOLO EN QAS
 
 customers_1 = (customers_0.with_column_plus(customers_extract['clients'])
     #.with_column_plus(customers_extract['clients_x']) # no existe en blob
