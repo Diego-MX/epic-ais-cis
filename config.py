@@ -69,7 +69,7 @@ SERVER = os.getenv('SERVER_TYPE')
 
 if ENV == "qas":
     DBKS_MAPPING = { # Key from Excel Refs, Value on DBKS metastore.
-    'clients' : 'star_schema.dim_client_new',  # 
+    'clients' : 'star_schema.dim_client_x',  # 
     'accounts': 'star_schema.current_account_x'}
 
 else:

@@ -2,23 +2,22 @@
 Read specs from Excel file and upload to blob file. 
 """
 from datetime import datetime as dt
-from pathlib import WindowsPath, Path
 from pytz import timezone
-import re   
 
 from dotenv import load_dotenv
 import pandas as pd
 
-from epic_py.tools import read_excel_table
-from src import app_path, app_resourcer
+from epic_py.tools import read_excel_table # pylint: disable=import-error
+from src import app_path, app_resourcer # pylint: disable=import-error
 
 ref_path = "refs/Security Info.xlsx.lnk"    # pylint: disable=invalid-name
 cols_ref = (ref_path, 'Approach', 'fraud_cols')
 
-meta_cols = read_excel_table(*cols_ref).set_index('columna')  
-col_types = meta_cols['tipo'].dropna()    
+meta_cols = read_excel_table(*cols_ref).set_index('columna')
+col_types = meta_cols['tipo'].dropna()
 
 def prepare_excelref(xls_df: pd.DataFrame):
+    """prepara los tipos de datos del excel de str a type"""
     type_map = {'int': int, 'dbl': float, 'str': str}
 
     a_df = (xls_df[col_types.index]
@@ -28,7 +27,7 @@ def prepare_excelref(xls_df: pd.DataFrame):
 if __name__ == '__main__':
     tmp_path = "refs/upload-specs"  # pylint: disable=invalid-name
     load_dotenv(override=True)
-    
+
     # table: sheet
     data_ref = {
         'payments':  'PIS',
@@ -52,3 +51,5 @@ if __name__ == '__main__':
             ref_file, blob_0, 'gold', overwrite=True, verbose=1)
         app_resourcer.upload_storage_blob(
             ref_file, blob_1, 'gold', overwrite=True, verbose=1)
+
+# Finite Incantatem

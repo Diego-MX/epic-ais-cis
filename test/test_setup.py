@@ -1,5 +1,9 @@
-"""Pruebas unitarias, se encargan de verificar que todos se encuentre habilitado y funcional
 """
+Pruebas unitarias setup, 
+Estas pruebas tienen como finalidad de revisar que los insumos especificos del repositorio
+se encuentren habilitados y listos para ser utilizados.
+"""
+import warnings
 
 from pyspark.dbutils import DBUtils
 from pyspark.sql import SparkSession
@@ -7,8 +11,10 @@ from pyspark.sql import SparkSession
 import pandas as pd
 import pytest
 
-import config as cfg
-from function_test import FunctionsTest
+from function_t import FunctionsTest # pylint:disable = import-error
+import config as cfg # pylint: disable = import-error
+
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 spark = SparkSession.builder.getOrCreate()
 dbutils = DBUtils(spark)
@@ -17,39 +23,38 @@ class TestRepository:
     """Pruebas unitarias correspondientes al repositorio"""
 
     @pytest.fixture
-    def functions_test(self):
-        """Llamado de la librería de function_test"""
+    def import_function(self):
+        "Llamado de la clase FunctionsTest"
         return FunctionsTest()
 
-    def test_feather_accounts_local(self,functions_test):
+    def test_feather_accounts_local(self,import_function):
         """Se verifica que la tabla contenga las columnas que índica el feather"""
         # Obtención de datos provenientes del archivo feather
-        folder = functions_test.get_root()
-        data_feather = pd.read_feather(folder[0].path)
+        user = import_function.get_user()["user"]
+        data_feather = pd.read_feather(f"file:/Workspace/Repos/{user}"
+                                       "/fraud-prevention/refs/upload-specs/accounts_cols.feather")
         columns_feather = data_feather["columna"].tolist()
-
-        print(columns_feather)
 
         # Extracción del nombre de las columnas de las tablas. Vienen de DBCKS
         name_table = cfg.DBKS_MAPPING["accounts"]
         data_table = spark.read.table(cfg.ENV+"."+name_table)
         columns_table = data_table.columns
 
-        print(columns_table)
-
         l_save = []
 
         for column in columns_feather:
             if column in columns_table:
+                print(column)
                 l_save.append(column)
 
         assert len(l_save)==2,"No se encontraron coincidencias en las columnas en AccountsLocal"
 
-    def test_feather_costumers_local(self,functions_test):
+    def test_feather_costumers_local(self,import_function):
         """Se verifica que la tabla contenga las columnas que índica el feather"""
+        user = import_function.get_user()["user"]
         # Obtención de datos provenientes del archivo feather
-        folder = functions_test.get_root()
-        data_feather = pd.read_feather(folder[1].path)
+        data_feather = pd.read_feather(f"file:/Workspace/Repos/{user}"
+                                       "/fraud-prevention/refs/upload-specs/customers_cols.feather")
         columns_feather = data_feather["columna"].tolist()
 
         # Extracción del nombre de las columnas de las tablas. Vienen de DBCKS
@@ -70,13 +75,14 @@ class TestRepository:
                 for i in range(2,4,1):
                     l_save.append(l_special[i])
 
-        assert len(l_save)==18, "No se encontraron coincidencias en las columnas"
+        assert len(l_save)==15, "No se encontraron coincidencias en las columnas"
 
-    def test_feather_paymonts_local(self, functions_test):
+    def test_feather_paymonts_local(self,import_function):
         """Se verifica que la tabla contenga las columnas que índica el feather"""
+        user = import_function.get_user()["user"]
         # Obtención de datos provenientes del archivo feather
-        folder = functions_test.get_root()
-        data_feather = pd.read_feather(folder[2].path)
+        data_feather = pd.read_feather(f"file:/Workspace/Repos/{user}"
+                                       "/fraud-prevention/refs/upload-specs/payments_cols.feather")
         columns_feather = data_feather["columna"].tolist()
 
         # Extracción del nombre de las columnas de las tablas. Vienen de DBCKS
@@ -84,4 +90,4 @@ class TestRepository:
 
         assert columns_feather!=[],"No se encontro el feather paymonts"
 
-# Finite Incatatem
+# Finite Incantatem

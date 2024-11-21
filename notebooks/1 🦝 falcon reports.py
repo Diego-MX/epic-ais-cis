@@ -313,10 +313,6 @@ def clean_caracter(df_data):
 
 # COMMAND ----------
 
-dbks_tables['clients']
-
-# COMMAND ----------
-
 cust_time = get_time()
 
 if specs_local:

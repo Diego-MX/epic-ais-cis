@@ -16,8 +16,8 @@ from pyspark.sql import SparkSession
 from pyspark.sql.utils import IllegalArgumentException
 import pytest
 
-import config as cfg
-from function_test import FunctionsTest
+import config as cfg # pylint: disable = import-error
+from function_t import FunctionsTest # pylint: disable = import-error
 
 
 spark=SparkSession.builder.getOrCreate()
@@ -139,8 +139,8 @@ class TestBasic:
 
     def test_tables_exist(self):
         """Verifica si la tabla proveniente de dbks existe"""
-        for tables_key, tables_name in cfg.DBKS_MAPPING.items():
+        for _, tables_name in cfg.DBKS_MAPPING.items():
             tables_name = cfg.ENV+"."+tables_name
             assert spark.catalog.tableExists(tables_name),f"Tabla no encontrada {tables_name}"
 
-# Finite Incatatem
+# Finite Incantatem

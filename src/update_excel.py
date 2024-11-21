@@ -1,46 +1,27 @@
-from pyspark.sql import functions as F, Row, SparkSession 
-from pyspark.dbutils import DBUtils 
-import pandas as pd
+"""
+Forma de subir los archivos requeridos para el notebook,
+ya no se puede utilizar dado que seguridad dice que es 
+peligroso
+"""
 
-import dbks_dependencies as deps
+import platform
 
-deps.pip_install("platform")
-import requests
-import pathlib
-from pathlib import WindowsPath, Path
-import re 
-
-import platform 
+import re
+from pathlib import Path
 
 sistema = platform.system()
-print("Estamos en {}".format(sistema))
+print(f"Estamos en {sistema}")
 
+A_FILE = "refs/Security Info.xlsx.lnk"
 
-a_file = "refs/Security Info.xlsx.lnk"
+if isinstance(A_FILE, str):
+    A_FILE = Path(A_FILE)
+    print(A_FILE)
+    print(type(A_FILE))
 
-if isinstance(a_file, str):
-    a_file = Path(a_file)
-    print(a_file)
-    print(type(a_file))
-
-if isinstance(a_file, Path):
-    file_ext = re.findall(r"\.([A-Za-z]{3,4})\.lnk", a_file.name)[0]
+if isinstance(A_FILE, Path):
+    file_ext = re.findall(r"\.([A-Za-z]{3,4})\.lnk", A_FILE.name)[0]
 else:
-    raise Exception("Couldn't determine file extension.")
+    raise Exception("Couldn't determine file extension.") # pylint: disable=broad-exception-raised
 
-# spark = SparkSession.builder.getOrCreate()
-# dbutils = DBUtils(spark)
-
-# ref_path = "refs/Security Info.xlsx.lnk"
-# df = pd.read_feather("../refs/upload-specs/accounts_cols.feather")
-# Link = "https://bineomex.sharepoint.com/:x:/r/sites/EngineeringX/Documentos%20compartidos/PC/Security%20Info.xlsx?d=webfd5bd795cf4def965a997d955971fb&csf=1&web=1&e=ZFDhJi"
-
-# Respuesta = requests.get(Link)
-# print(Respuesta)
-# if Respuesta == 200:
-#     print("exito al conectar")
-
-# else:
-#     print("Fallo")
-
-# print(df)
+# Finite Incantatem

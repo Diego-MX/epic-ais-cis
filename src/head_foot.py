@@ -1,11 +1,11 @@
 """DX, 5 de septiembre de 2023
 Módulo para generar FlatFileInfo a modo de pruebas. 
 """
-from epic_py.delta import FlatFileInfo
+from epic_py.delta import FlatFileInfo # pylint: disable=import-error
 
 TEST_INFO = False
 
-meta_info = dict(option=True, vendor='fiserv')
+meta_info = {"option":True, "vendor":"fiserv"}
 
 lengths = (15, 10) if TEST_INFO else (1866, 1136)
 
@@ -32,13 +32,15 @@ foot_opts = {
     'append'            : 1}
 
 headfooters = {
-    ('customer', 'header'): {**meta_info, 'data': {**cust_opts, **head_opts}}, 
+    ('customer', 'header'): {**meta_info, 'data': {**cust_opts, **head_opts}},
     ('account' , 'header'): {**meta_info, 'data': {**acct_opts, **head_opts}},
     ('customer', 'footer'): {**meta_info, 'data': {**cust_opts, **foot_opts}},
     ('account' , 'footer'): {**meta_info, 'data': {**acct_opts, **foot_opts}}}
 
 
-if __name__ == '__main__': 
+if __name__ == '__main__':
     choose_one = ('customer', 'header')
     flatter = FlatFileInfo.create(**headfooters[choose_one])
     print(flatter.info_to_row())
+
+# Finite Incantatem

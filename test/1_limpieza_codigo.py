@@ -4,7 +4,7 @@ para ello se utiliza pylint"""
 import subprocess
 
 # Define la ruta a tu archivo Python en DBFS
-FILE_PATH = "/Workspace/Repos/juan.v@bineo.com/fraud-prevention/test/function_test.py"
+FILE_PATH = "/Workspace/Repos/juan.v@bineo.com/fraud-prevention/notebooks/dependence/1_dim_client_x"
 
 # Ejecuta pylint
 result = subprocess.run(['pylint', FILE_PATH], capture_output=True, text=True)
@@ -14,4 +14,4 @@ print(result.stdout)
 print()
 print(result.stderr)
 
-# Finite Incatatem
+# Finite Incantatem

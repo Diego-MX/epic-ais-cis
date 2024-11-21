@@ -1,6 +1,0 @@
-# pytest.ini
-# [pytest]
-# filterwarnings =
-#     error
-#     ignore::UserWarning
-#     ignore:function ham\(\) is deprecated:DeprecationWarning

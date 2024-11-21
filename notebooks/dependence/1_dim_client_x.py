@@ -218,7 +218,7 @@ df_final.display()
 # COMMAND ----------
 
 # DBTITLE 1,Table Variable
-create_table_delta = False
+create_table_delta = True
 create_table_catalog = False
 drop_table = False
 
