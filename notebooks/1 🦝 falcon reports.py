@@ -13,9 +13,9 @@
 
 # COMMAND ----------
 
-import dbks_dependencies as deps
+import dbks_dependencies as deps # pylint: disable=import-error
 
-deps.gh_epicpy('meetme-1',  
+deps.gh_epicpy('meetme-1',
     tokenfile='../user_databricks.json', typing=False, verbose=True)
 
 # COMMAND ----------
@@ -26,7 +26,12 @@ deps.gh_epicpy('meetme-1',
 # pylint: disable=import-error
 # pylint: disable=no-name-in-module
 # pylint: disable=wrong-import-order
+# pylint: disable=non-ascii-module-import
+# pylint: disable=unused-import
 # pylint: disable=wrong-import-position
+# pylint: disable=unnecessary-lambda-assignment
+# pylint: disable=trailing-whitespace
+# pylint: disable=pointless-statement
 
 from datetime import datetime as dt
 from io import BytesIO
@@ -37,7 +42,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from pyspark.sql import functions as F, Row, SparkSession,DataFrame
 from pyspark.sql.functions import col, regexp_replace
-from pyspark.dbutils import DBUtils     
+from pyspark.dbutils import DBUtils
 from toolz import pipe, remove
 from toolz.curried import map as map_z
 
@@ -46,7 +51,7 @@ from epic_py.tools import dirfiles_df, partial2
 
 from src import (app_agent, app_resourcer, app_abfss, app_path,
     dbks_tables, falcon_types, falcon_rename)
-from src.head_foot import headfooters   
+from src.head_foot import headfooters
 
 from config import ENV # PARCHE MOMENTANEO DADO QUE LAS TABLAS SE MUEVEN >:l
 
@@ -60,10 +65,11 @@ COL_DEBUG = False
 
 w_get = dbutils.widgets.get
 
-row_name = lambda row: "{name}-{len}".format(**row)   
+row_name = lambda row: "{name}-{len}".format(**row)
 
-def replace_if(eq_val, rep_val): 
-    # xx -> rep_val if xx == eq_val else xx 
+def replace_if(eq_val, rep_val):
+    """Remplaza el valor de acuerdo a la situación"""
+    # xx -> rep_val if xx == eq_val else xx
     # xx -> if_else(rep_val, equal_to(eq_val)(xx), xx)
     # xx -> if_else(constant(rep_val)(xx), equal_to(eq_val)(xx), identity(xx))
     # xx -> if_else(*juxt(constant(rep_val), equal_to(eq_val), identity)(xx))
@@ -72,6 +78,7 @@ def replace_if(eq_val, rep_val):
     return (lambda xx: rep_val if xx == eq_val else xx)
 
 def get_time(a_tz="America/Mexico_City", time_fmt="%Y-%m-%d"):
+    """Obtención del tiempo"""
     return dt.now(tz=tz(a_tz)).strftime(format=time_fmt)
 
 date_str = lambda ss: dt.strptime(ss, '%Y-%m-%d').date()
@@ -86,13 +93,13 @@ dbutils.widgets.text('specs_local', 'true', "Archivo Feather p. Specs en Repo")
 
 # COMMAND ----------
 
-haz_pagos = (w_get('con_pagos').lower() == 'true')
+haz_pagos = w_get('con_pagos').lower() == 'true'
 
-specs_local = (w_get('specs_local') == 'true')
+specs_local = w_get('specs_local') == 'true'
 at_specs = default_path if specs_local else f"{app_path}/specs"
 gold_container = app_resourcer.get_storage_client(None, 'gold')
 
-w_stub = (w_get('workflow_stub').lower() == 'true')
+w_stub = w_get('workflow_stub').lower() == 'true'
 
 falcon_builder = EpicDataBuilder(typehandler=falcon_handler)
 
@@ -169,10 +176,10 @@ dbks_tables['accounts']
 
 acct_time = get_time()
 
-if specs_local: 
+if specs_local:
     accounts_specs = (pd.read_feather(f"{at_specs}/accounts_cols.feather")
         .rename(columns=falcon_rename))
-else: 
+else:
     b_blob = gold_container.get_blob_client(f"{at_specs}/accounts_specs_latest.feather")
     b_data = b_blob.download_blob()
     b_strm = BytesIO()
@@ -183,20 +190,20 @@ else:
 
 accounts_specs.loc[1, 'column'] = 'modelSTUB' if w_stub else 'RBTRAN'
 
-ais_longname = '~'.join(row_name(rr) 
+ais_longname = '~'.join(row_name(rr)
         for _, rr in accounts_specs.iterrows())
 ais_name = ais_longname if COL_DEBUG else 'ais-columna-fixed-width'
 
 accounts_extract = falcon_builder.get_extract(accounts_specs, 'delta')
-# Qué columna viene de qué tabla, o qué valor. 
+# Qué columna viene de qué tabla, o qué valor.
 
 accounts_loader = falcon_builder.get_loader(accounts_specs, 'fixed-width')
-# Convertir a ancho fijo de acuerdo al tipo de columna. 
+# Convertir a ancho fijo de acuerdo al tipo de columna.
 
 accounts_onecol = (F.concat(*accounts_specs['name'].values)
     .alias(ais_name))
 
-accounts_0 = accounts_transform(EpicDF(spark, dbks_tables['accounts'])) # Línea Problema se debe de cambiar desde epic_py
+accounts_0 = accounts_transform(EpicDF(spark, dbks_tables['accounts']))
 
 accounts_1 = (accounts_0
     .select_plus(accounts_extract['accounts'])
@@ -225,14 +232,14 @@ accounts_3.save_as_file(
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ###   1.  Longitud de filas 
+# MAGIC ###   1.  Longitud de filas
 
 # COMMAND ----------
 
 print("Filas AIS-post escritura")
 post_ais = (spark.read.format('csv')
     .load(f"{app_abfss}/reports/accounts/{acct_time}.csv"))
-    
+
 ais_inf = (post_ais
     .select(F.length('_c0').alias('ais_longitud'))
     .groupBy('ais_longitud')
@@ -270,19 +277,29 @@ AIS Path:\t{ais_path}
 # MAGIC * Un filtrado de datos repetidos debido al desmadre que se hizo con `kyc`.  
 # MAGIC
 
+
+# COMMAND ----------
+
+dbks_tables['clients']
+
 # COMMAND ----------
 
 agg_one = lambda cc: F.any_value(cc).alias(cc)
 
-def one_customers(df_0): 
-    first_cols = pipe(df_0.columns, 
-        partial2(remove, ϱ('startswith', ('client_id', 'ben_', 'kyc_')), ...), 
+def one_customers(df_0):
+    """Se retiran los usuarios repetidos por los beneficiarios,
+    :param df_0: DataFrame con los datos de interes"""
+    first_cols = pipe(df_0.columns,
+        partial2(remove, ϱ('startswith', ('client_id', 'ben_', 'kyc_')), ...),
         map_z(agg_one))
     df_1 = df_0.groupBy('client_id').agg(*first_cols)
     return df_1
 
-def x_customers(df_0): 
-    kyc_cols = {'OCCUPATION': 'x_occupation', 
+def x_customers(df_0):
+    """Se extraen los datos requeridos de los renglones objetivo y los coloca en 
+     columnas para poder acceder facilmente.
+     :param df_0: DataFrame con los datos de interes"""
+    kyc_cols = {'OCCUPATION': 'x_occupation',
             'SOURCEOFINCOME': 'x_src_income'}
     kyc_df = (df_0
        .select('client_id', 'kyc_id', 'kyc_answer')
@@ -301,14 +318,23 @@ def x_customers(df_0):
 
 # PARCHES LOCOS
 def parche_tablas(df_data):
+    """Fue modificada la tabla dim_client separando las columnas kyc y acomodandolas en una
+    nueva tabla, la función une de nuevo ambas tablas en una sola para evitar modificar el 
+    código
+    :param df_data: Es el Dataframe que contiene los datos en cuestión"""
     df_kyc = spark.read.table(f"{ENV}.star_schema.dim_client_kyc")
     df_kyc_select = df_kyc.select("client_id", "kyc_id", "kyc_answer")
     df_return = df_data.join(df_kyc_select, "client_id", how="left")
     return df_return
 
 def clean_caracter(df_data):
-    df_clean = df_data.select([regexp_replace(col(column), '"',"").alias(column) for column in df_data.columns])
-    df_return = df_clean.select([regexp_replace(col(column), ",", "").alias(column) for column in df_clean.columns]) 
+    """Se retiran todos las comas y las comillas de los datos provenientes de dim_client
+    :param df_data: Es el Dataframe que contiene los datos en cuestión
+    """
+    df_clean = df_data.select([regexp_replace(col(column), '"',"")
+                               .alias(column) for column in df_data.columns])
+    df_return = df_clean.select([regexp_replace(col(column), ",", "")
+                                 .alias(column) for column in df_clean.columns])
     return df_return
 
 # COMMAND ----------
@@ -336,7 +362,7 @@ name_onecol = '~'.join(row_name(rr)       # pylint: disable=invalid-name
     for _, rr in customers_specs.iterrows())
 
 gender_df_2 = spark.createDataFrame([
-    Row(gender='H', gender_new='M'), 
+    Row(gender='H', gender_new='M'),
     Row(gender='M', gender_new='F')])
 
 customers_extract = falcon_builder.get_extract(customers_specs, 'delta')
@@ -382,7 +408,7 @@ customers_3.save_as_file(
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### 1. Longitud de filas  
+# MAGIC ### 1. Longitud de filas
 
 # COMMAND ----------
 
@@ -406,7 +432,7 @@ cis_path = f"{app_abfss}/reports/customers/"
 print(f"""
 CIS Path:\t{cis_path}
 (horario UTC)"""[1:])
-(dirfiles_df(cis_path, spark)   
+(dirfiles_df(cis_path, spark)
     .loc[:, ['name', 'modificationTime', 'size']])
 
 # COMMAND ----------
@@ -422,7 +448,7 @@ if haz_pagos:
             .rename(columns=falcon_rename))
     payments_specs.loc[1, 'column'] = 'modelSTUB' if w_stub else 'RBTRAN'
 
-    one_column = '~'.join(map(row_name, payments_specs.itertuples()))    
+    one_column = '~'.join(map(row_name, payments_specs.itertuples()))
 
     payments_extract = falcon_builder.get_extract(payments_specs, 'delta')
     payments_loader = falcon_builder.get_loader(payments_specs, 'fixed-width')
@@ -445,8 +471,8 @@ if haz_pagos:
 
 # COMMAND ----------
 
-# MAGIC %md 
-# MAGIC ## Resultados Gráficos 
+# MAGIC %md
+# MAGIC ## Resultados Gráficos
 
 # COMMAND ----------
 
