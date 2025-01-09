@@ -13,194 +13,277 @@
 
 # COMMAND ----------
 
-from pyspark.sql import SparkSession
-from pyspark.dbutils import DBUtils
+import dbks_dependencies as deps
+
+deps.gh_epicpy('meetme-1',  
+    tokenfile='../user_databricks.json', typing=False, verbose=True)
+
+# COMMAND ----------
+
+import math 
+from pyspark.sql import DataFrame
+def get_size(df_dataframe:DataFrame) -> str:
+    """:param int bytes: Número entero que contiene el peso del archivo en bytes
+    Convertidor de bytes para poder leer con mayor facilidad el dato"""
+
+    bytes = sc._jvm.org.apache.spark.util.SizeEstimator.estimate(df_dataframe._jdf)
+
+    size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
+    type_size = int(math.floor(math.log(bytes, 1024)))
+    value_unit = math.pow(1024,type_size)
+    size_bytes = round(bytes/value_unit,2)
+
+    return f"{size_bytes} {size_name[type_size]}"
+
+# COMMAND ----------
+
+from datetime import datetime as dt
+from io import BytesIO
+from operator import methodcaller as ϱ
+from pytz import timezone as tz
+
+import matplotlib.pyplot as plt
+import pandas as pd
+from pyspark.sql import functions as F, Row, SparkSession,DataFrame
+from pyspark.sql.functions import col, regexp_replace
+from pyspark.dbutils import DBUtils     
+from toolz import pipe, remove
+from toolz.curried import map as map_z
+
+from epic_py.delta import EpicDF, EpicDataBuilder, TypeHandler
+from epic_py.tools import dirfiles_df, partial2
+
+from src import (app_agent, app_resourcer, app_abfss, app_path,
+    dbks_tables, falcon_types, falcon_rename)
+from src.head_foot import headfooters   
+
+from config import ENV # PARCHE MOMENTANEO DADO QUE LAS TABLAS SE MUEVEN >:l
 
 spark = SparkSession.builder.getOrCreate()
 dbutils = DBUtils(spark)
-root_original = "abfss://gold@stlakehyliaprd.dfs.core.windows.net/ops/fraud-prevention/reports/zipped/customers"
-files = dbutils.fs.ls(root_original)
+falcon_handler = TypeHandler(falcon_types)
 
-for ii in files:
-    print(ii.name)
+# COMMAND ----------
+
+COL_DEBUG = False
+
+w_get = dbutils.widgets.get
+
+row_name = lambda row: "{name}-{len}".format(**row)   
+
+def replace_if(eq_val, rep_val): 
+    # xx -> rep_val if xx == eq_val else xx 
+    # xx -> if_else(rep_val, equal_to(eq_val)(xx), xx)
+    # xx -> if_else(constant(rep_val)(xx), equal_to(eq_val)(xx), identity(xx))
+    # xx -> if_else(*juxt(constant(rep_val), equal_to(eq_val), identity)(xx))
+    # compose(packed(if_else), juxt(constant(rep_val), equal_to(eq_val), identity))
+    # Más complicado 😒
+    return (lambda xx: rep_val if xx == eq_val else xx)
+
+def get_time(a_tz="America/Mexico_City", time_fmt="%Y-%m-%d"):
+    return dt.now(tz=tz(a_tz)).strftime(format=time_fmt)
+
+date_str = lambda ss: dt.strptime(ss, '%Y-%m-%d').date()
+
+dates_by_env = {'qas': '2022-01-01', 'prd': '2023-05-01', None: '2023-01-01'}
+default_path = "../refs/upload-specs"
 
 
 # COMMAND ----------
 
-search = spark.read.table("prd.star_schema.dim_client")
-search.filter(search.client_id =="1012574").display()
-# search.filter(search.client_id =="1013576").display()
+# haz_pagos = (w_get('con_pagos').lower() == 'true')
+
+specs_local = True #(w_get('specs_local') == 'true')
+at_specs = default_path if specs_local else f"{app_path}/specs"
+gold_container = app_resourcer.get_storage_client(None, 'gold')
+
+w_stub = True #(w_get('workflow_stub').lower() == 'true')
+
+falcon_builder = EpicDataBuilder(typehandler=falcon_handler)
+
+datalake = app_resourcer['storage']
+dlk_permissions = app_agent.prep_dbks_permissions(datalake, 'gen2')
+app_resourcer.set_dbks_permissions(dlk_permissions)
 
 
 # COMMAND ----------
 
+agg_one = lambda cc: F.any_value(cc).alias(cc)
 
-from pyspark.sql.functions import regexp_replace, translate, col
+def one_customers(df_0): 
+    first_cols = pipe(df_0.columns, 
+        partial2(remove, ϱ('startswith', ('client_id', 'ben_', 'kyc_')), ...), 
+        map_z(agg_one))
+    df_1 = df_0.groupBy('client_id').agg(*first_cols)
+    return df_1
 
-df_clean = search.select([regexp_replace(col(column), '"',"").alias(column) for column in search.columns])
-df_clean = df_clean.select([regexp_replace(col(column), ",", "").alias(column) for column in df_clean.columns])
-
+def x_customers(df_0): 
+    kyc_cols = {'OCCUPATION': 'x_occupation', 
+            'SOURCEOFINCOME': 'x_src_income'}
+    kyc_df = (df_0
+       .select('client_id', 'kyc_id', 'kyc_answer')
+       .groupBy('client_id')
+       .pivot('kyc_id', list(kyc_cols.keys()))
+       .agg(F.first('kyc_answer'))
+       .withColumnsRenamed(kyc_cols))
+    df_1 = (df_0
+        .withColumn('x_address', F.concat_ws(" ", "addr_street", "addr_external_number"))
+        .select('client_id', 'x_address')
+        .groupBy('client_id').agg(agg_one('x_address'))
+        .join(kyc_df, 'client_id', how='left'))
+    return df_1
 
 # COMMAND ----------
 
+# PARCHES LOCOS
+def parche_tablas(df_data):
+    df_kyc = spark.read.table(f"{ENV}.star_schema.dim_client_kyc")
+    df_kyc_select = df_kyc.select("client_id", "kyc_id", "kyc_answer")
+    df_return = df_data.join(df_kyc_select, "client_id", how="left")
+    return df_return
 
-# df_clean.filter(df_clean.client_id =="1012574").display()
+def clean_caracter(df_data):
+    df_clean = df_data.select([regexp_replace(col(column), '"',"").alias(column) for column in df_data.columns])
+    df_return = df_clean.select([regexp_replace(col(column), ",", "").alias(column) for column in df_clean.columns]) 
+    return df_return
 
 # COMMAND ----------
 
-# MAGIC %md
-# MAGIC NADA
+cust_time = get_time()
+
+if specs_local:
+    customers_specs = (pd.read_feather(f"{at_specs}/customers_cols.feather")
+        .rename(columns=falcon_rename))
+
+else:
+    b_blob = gold_container.get_blob_client(f"{at_specs}/customers_specs_latest.feather")
+    b_data = b_blob.download_blob()
+    b_strm = BytesIO()
+    b_data.readinto(b_strm)
+    b_strm.seek(0)
+    customers_specs = (pd.read_feather(b_strm)
+        .rename(columns=falcon_rename))
+
+customers_specs.loc[1, 'column'] = 'modelSTUB' if w_stub else 'RBTRAN'
+cis_longname = '~'.join(row_name(rr) for _, rr in customers_specs.iterrows())
+cis_name = cis_longname if COL_DEBUG else 'cis-columna-fixed-width'
+
+name_onecol = '~'.join(row_name(rr)       # pylint: disable=invalid-name
+    for _, rr in customers_specs.iterrows())
+
+gender_df_2 = spark.createDataFrame([
+    Row(gender='H', gender_new='M'), 
+    Row(gender='M', gender_new='F')])
+
+customers_extract = falcon_builder.get_extract(customers_specs, 'delta')
+customers_loader  = falcon_builder.get_loader(customers_specs, 'fixed-width')
+customers_onecol  = (F.concat(*customers_specs['name'].values)
+    .alias(cis_name))
+
+# customers_0.count()
 
 # COMMAND ----------
 
-# %pip install databricks-sdk --upgrade 
-# dbutils.library.restartPython()
+customers_0 = EpicDF(spark, dbks_tables['clients'])
+# customers_0 = clean_caracter(customers_0)
+customers_0.cache()
+print(get_size(customers_0))
 
 # COMMAND ----------
 
-"""DX, September 5th, 2023
-Main object is EpicDF which extends spark.DataFrame functionality. 
-"""
-from collections import OrderedDict
-from datetime import date
-from functools import reduce
-from operator import add, and_, itemgetter, methodcaller as ϱ, or_
+customers_1 = (one_customers(customers_0)
+    .join(x_customers(customers_0), on='client_id')
+    .with_column_plus(customers_extract['clients'])
+    #.with_column_plus(customers_extract['clients_x']) # no existe en blob
+    .with_column_plus(customers_extract['_val'])
+    .with_column_plus(customers_extract['None'])
+    .join(gender_df_2, on='gender').drop('gender')
+    .withColumnRenamed('gender_new', 'gender'))
+
+customers_1.cache()
+print(get_size(customers_1))
+
+# COMMAND ----------
+
+customers_1.count()
+
+# COMMAND ----------
+
 from typing import Union
-from warnings import warn
-import os
+from pyspark.sql import functions as F, types as T, Column, SparkSession
 
-# from databricks.connect.sdk.runtime import spark
-from delta.tables import DeltaTable
-from pandas import DataFrame as pd_DF
-from pyspark.sql import (functions as F, GroupedData, DataFrame as SpkDF, 
-    SparkSession)
-import pyspark
-from packaging.version import parse as v_parse
-# from toolz import compose, identity, juxt, pipe
-# from toolz.curried import map as map_z
+def as_column_p(a_col: Union[Column, str]) -> Column:
+    """Helps to working with dataframes when columns aren't the best handled."""
+    if   isinstance(a_col, Column):
+        return a_col
+    elif isinstance(a_col, str):
+        return F.col(a_col)
+    else:
+        print(f"Check type: {type(a_col)}")
+        return a_col
 
-# from ..tools import partial2    # MatchCase, packed, unpacked 
-# from ..tools.vi_spk_tools import as_column
-# from .i_table_info import FlatFileInfo
+def item_col(an_item):
+    aa, cc = an_item    # pylint: disable=invalid-name
+    return as_column_p(cc).alias(aa)
 
-# pylint: disable=inherit-non-class
-# pylint: disable=useless-return
+def select_plus_p(self, cols=Union[dict, list]):
+    """{alias: column}"""
+    if isinstance(cols, dict):
+        cols = map(item_col, cols.items())
+    print(self.select(*cols))
+    return self.select(*cols)
 
-TYPEHANDLER_WARN = "TYPEHANDLER automatically set with default options."
-SPKSESSION_WARN  = "Calling DF.SQL_CTX instead of DF.SPARKSESSION"
+customers_2_p = select_plus_p(customers_1,customers_loader)
 
+# COMMAND ----------
+
+customers_2 = customers_1.select_plus(customers_loader)
+
+# COMMAND ----------
+
+customers_2.count()
+
+# COMMAND ----------
+
+# 2.11 hrs 
+customers_3 = (customers_2
+    .select(customers_onecol)
+    .prep_one_col(header_info=headfooters[('customer', 'header')],
+                 trailer_info=headfooters[('customer', 'footer')]))
+
+# .prep_one_col(header_info=headfooters[('customer', 'header')],
+#                  trailer_info=headfooters[('customer', 'footer')])
+
+# COMMAND ----------
+
+customers_3.count()
+
+# COMMAND ----------
+
+print(customers_0.count(),customers_1.count(),
+      customers_2.count(),customers_3.count())
+customers_3.display()
+
+# customers_3.save_as_file(
+#     f"/Workspace/Repos/juan.v@bineo.com/data-ops-fraud-prevention/test/zip_files/{cust_time}.csv",
+#     header=False, ignoreTrailingWhiteSpace=False, ignoreLeadingWhiteSpace=False)
 
 # COMMAND ----------
 
 
-class EpicMixin:    # pylint: disable=missing-class-docstring
-    class_map = {}
-    @classmethod
-    def update_map(cls, map_dict):
-        cls.class_map.update(map_dict)
+import pandas as pd
 
-    @classmethod
-    def to_epic(cls, obj):
-        if type(obj) in cls.class_map:
-            epic_class = cls.class_map[type(obj)]
-            return epic_class(obj)
+a = pd.read_feather("/Workspace/Repos/juan.v@bineo.com/data-ops-fraud-prevention/refs/upload-specs/accounts_cols.feather")
 
-        if callable(obj):   # pylint: disable=no-else-return
-            e_caller = lambda *a, **kw: cls.to_epic(obj(*a, **kw))
-            return e_caller
-        else:
-            return obj
+# display(a)
 
-def parche_version_pyspark(version):
-    "Funcionará... lo averiguaremos"
-    if v_parse(version.version) < v_parse("3.4.0"):
-        comparador = SparkSession
-    elif v_parse(version.version) >= v_parse("3.4.0"):
-        comparador = version
-    return comparador
+a = pd.read_feather("/Workspace/Repos/juan.v@bineo.com/data-ops-fraud-prevention/refs/upload-specs/customers_cols.feather")
 
-def is_session(an_obj):
-    comparador = parche_version_pyspark(an_obj)
-    print(comparador,type(comparador),type(an_obj))
-    return type(an_obj) == type(comparador)
+# display(a)
 
-class EpicDF(EpicMixin, SpkDF):
-    '''Improve Spark Dataframe functionality.'''
-    __module__ = 'epic_py'
+from pyspark.sql import functions as F
 
-    def __init__(self, *args):
-        df = self._init_args(*args)     # pylint: disable=invalid-name
-        try:
-            sql_ctx = df.sparkSession
-        except AttributeError:
-            warn(SPKSESSION_WARN)
-            sql_ctx = df.sql_ctx
-        super().__init__(df._jdf, sql_ctx)
-        self._df = df
+b = spark.createDataFrame(a)
+count = b.agg(F.count("*")).collect()[0][0]
 
-        for m_name in self.df_methods:
-            a_method = getattr(self, m_name)
-            e_method = self.to_epic(a_method)
-            setattr(self, m_name, e_method)
-
-    def __getattr__(self, a_name):
-        an_attr = super().__getattr__(a_name)
-        return self.to_epic(an_attr)
-
-    def __repr__(self):
-        return super().__repr__().replace('DataFrame', 'EpicDF')
-
-    def _init_args(self, *args):
-        if isinstance(args[0], SpkDF):
-            return args[0]
-        
-        entonces = parche_version_pyspark(args[0])
-
-        if is_session(entonces):
-            spark = args[0]
-            if isinstance(args[1], pd_DF):
-                return spark.createDataFrame(args[1])
-            print(1)
-            if os.path.exists(os.path.join(args[1],"_delta_log")):
-                the_df = (spark.read.format('delta').load(args[1]))
-                return the_df
-            try:
-                print(2)
-                the_df = spark.read.table(args[1])
-                the_df.display()
-                return the_df
-            except Exception as exc:    # pylint: disable=broad-exception-caught
-                print(f"Exception of type {type(exc)}")
-            raise ValueError("Needs pd-DF, Δ-path, table with SparkSession.")
-        else:
-            raise ValueError("First Argument must be (spark)-DataFrame or SparkSession.")
-
-
-
-# COMMAND ----------
-
-spark = SparkSession.builder.getOrCreate()
-RUTA = "qas.star_schema.current_account_x"
-
-EpicDF(spark,RUTA)
-
-# COMMAND ----------
-
-asi = spark.read.table(RUTA)
-
-# if DeltaTable.isDeltaTable(spark,RUTA): # Falla no se puede utilizar
-#     print(0)
-
-# if spark.read.format("delta").load(RUTA):
-#     print(spark.read.format("delta").load(RUTA)) # Falla no se puede usar
-
-import os
-
-review = os.path.join(RUTA,"_delta_log")
-if os.path.exists(os.path.join(RUTA,"_delta_log")):
-    print(2)
-else: 
-    print(3)
-
-
-
+count

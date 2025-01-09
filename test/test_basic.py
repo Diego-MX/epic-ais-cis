@@ -103,9 +103,9 @@ class TestBasic:
         sí se ejecuta correctamente se accedera al secreto del keyvault.
         """
 
-        keyvault = cfg.AZURE_RESOURCES["qas"]["keyvault"] #cfg.ENV
+        keyvault = cfg.AZURE_RESOURCES["prd"]["keyvault"] #cfg.ENV
         url = f"https://{keyvault}.vault.azure.net/"
-        d_agent = cfg.SETUP_KEYS["qas"]["service-principal"]
+        d_agent = cfg.SETUP_KEYS["prd"]["service-principal"]
         secret_vault = d_agent["tenant_id"]
 
         try:

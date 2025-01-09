@@ -108,7 +108,6 @@ dlk_permissions = app_agent.prep_dbks_permissions(datalake, 'gen2')
 app_resourcer.set_dbks_permissions(dlk_permissions)
 
 
-
 # COMMAND ----------
 
 # MAGIC %md
@@ -210,12 +209,18 @@ accounts_1 = (accounts_0
     .with_column_plus(accounts_extract['_val'])
     .with_column_plus(accounts_extract['None']))
 
+accounts_1.cache()
+accounts_1.count()
+
 accounts_2 = accounts_1.select_plus(accounts_loader)
 
 accounts_3 = (accounts_2
     .select(accounts_onecol)
     .prep_one_col(header_info=headfooters[('account', 'header')],
                  trailer_info=headfooters[('account', 'footer')]))
+
+print(accounts_0.count(),accounts_1.count(),
+      accounts_2.count(),accounts_3.count())
 
 accounts_3.display()
 
@@ -244,7 +249,8 @@ ais_inf = (post_ais
     .select(F.length('_c0').alias('ais_longitud'))
     .groupBy('ais_longitud')
     .count())
-
+    
+post_ais.orderBy('_c0',ascending=False).limit(1).display()
 ais_inf.display()
 
 # COMMAND ----------
@@ -276,7 +282,7 @@ AIS Path:\t{ais_path}
 # MAGIC * Un increíble _pivoteo_ de columnas de `kyc`.  
 # MAGIC * Un filtrado de datos repetidos debido al desmadre que se hizo con `kyc`.  
 # MAGIC
-
+# MAGIC
 
 # COMMAND ----------
 
@@ -316,7 +322,7 @@ def x_customers(df_0):
 
 # COMMAND ----------
 
-# PARCHES LOCOS
+# PARCHES LOCOS, no borrar hasta que se tenga que borrar
 def parche_tablas(df_data):
     """Fue modificada la tabla dim_client separando las columnas kyc y acomodandolas en una
     nueva tabla, la función une de nuevo ambas tablas en una sola para evitar modificar el 
@@ -336,6 +342,10 @@ def clean_caracter(df_data):
     df_return = df_clean.select([regexp_replace(col(column), ",", "")
                                  .alias(column) for column in df_clean.columns])
     return df_return
+
+# COMMAND ----------
+
+dbks_tables['clients']
 
 # COMMAND ----------
 
@@ -385,6 +395,9 @@ customers_1 = (one_customers(customers_0)
     .join(gender_df_2, on='gender').drop('gender')
     .withColumnRenamed('gender_new', 'gender'))
 
+customers_1.cache()
+customers_1.count()
+
 customers_2 = (customers_1
     .select_plus(customers_loader))
 
@@ -393,6 +406,8 @@ customers_3 = (customers_2
     .prep_one_col(header_info=headfooters[('customer', 'header')],
                  trailer_info=headfooters[('customer', 'footer')]))
 
+print(customers_0.count(),customers_1.count(),
+      customers_2.count(),customers_3.count())
 customers_3.display()
 
 customers_3.save_as_file(
@@ -419,6 +434,7 @@ cis_inf = (post_cis
     .select(F.length('_c0').alias('cis_longitud'))
     .groupBy('cis_longitud')
     .count())
+post_cis.orderBy('_c0',ascending=False).limit(1).display()
 cis_inf.display()
 
 # COMMAND ----------

@@ -28,6 +28,13 @@
 
 # COMMAND ----------
 
+# MAGIC %pip install pytest
+# MAGIC %pip install toolz
+# MAGIC %pip install azure-identity
+# MAGIC %restart_python
+
+# COMMAND ----------
+
 # DBTITLE 1,Unit Test
 import sys
 import pytest
