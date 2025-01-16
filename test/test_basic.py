@@ -34,7 +34,7 @@ class TestBasic:
     def test_scope(self,functions_test):
         """Verifica que el SCOPE del respectivo recurso se encuentre disponible"""
 
-        tokener = functions_test.get_user()
+        tokener = functions_test.get_user_gh()
         dbks_scope=cfg.SETUP_KEYS[cfg.ENV]["databricks-scope"]
         user_scope=tokener['dbks_scope']
         scopes=dbutils.secrets.listScopes()
@@ -53,7 +53,7 @@ class TestBasic:
 
     def test_token_github(self, functions_test):
         """Verifica el token de github mediante la instalación de un recurso"""
-        tokener = functions_test.get_user()
+        tokener = functions_test.get_user_gh()
         token = dbutils.secrets.get(scope=tokener['dbks_scope'], key=tokener['dbks_token'])
 
         keys = {

@@ -173,6 +173,31 @@ dbks_tables['accounts']
 
 # COMMAND ----------
 
+# DBTITLE 1,Parche header
+def repair_dbks(df_last: DataFrame, df_ancestor:DataFrame, configuration: dict)-> DataFrame:
+    """ La función solventa el movimiento del header en AIS después de la escritura, se extraen los
+    headers y footers de la última transformación y se obtienen los datos por separado para unirlos 
+    utilizando DataFrame de Pandas y postrtiormente convertirlos a un DataFrame de Spark.
+    :params DataFrame df_last: Es el Dataframe que contiene header, data y footer - accounts_3 -,
+    :params DataFrame df_ancestor: Es la penúltima transformación - accounts_2 -,
+    :params Dict configuration: La configuración de la columna única """ 
+
+    df_accounts = df_ancestor.select(configuration).toPandas()
+
+    header = df_last.head(1)[0] 
+    footer = df_last.tail(1)[0]
+ 
+    df_header = spark.createDataFrame([header], df_last.columns).toPandas()
+    df_footer = spark.createDataFrame([footer], df_last.columns).toPandas()
+
+    df_combinate = pd.concat([df_header,df_accounts], ignore_index = True)
+    df_finally = pd.concat([df_combinate,df_footer], ignore_index = True)
+    df_finally = spark.createDataFrame(df_finally)
+
+    return EpicDF(df_finally)
+
+# COMMAND ----------
+
 acct_time = get_time()
 
 if specs_local:
@@ -219,12 +244,14 @@ accounts_3 = (accounts_2
     .prep_one_col(header_info=headfooters[('account', 'header')],
                  trailer_info=headfooters[('account', 'footer')]))
 
-print(accounts_0.count(),accounts_1.count(),
-      accounts_2.count(),accounts_3.count())
+accounts_4 = repair_dbks(accounts_3,accounts_2,accounts_onecol)
 
-accounts_3.display()
+print(accounts_0.count(),accounts_1.count(),accounts_2.count(),
+      accounts_3.count(),accounts_4.count())
 
-accounts_3.save_as_file(
+accounts_4.display()
+
+accounts_4.save_as_file(
     f"{app_abfss}/reports/accounts/{acct_time}.csv",
     f"{app_abfss}/reports/accounts/tmp_delta",
     header=False, ignoreTrailingWhiteSpace=False, ignoreLeadingWhiteSpace=False)
@@ -249,9 +276,10 @@ ais_inf = (post_ais
     .select(F.length('_c0').alias('ais_longitud'))
     .groupBy('ais_longitud')
     .count())
-    
-post_ais.orderBy('_c0',ascending=False).limit(1).display()
+
 ais_inf.display()
+print("Primera fila AIS-post",post_ais.first())
+print("Última fila AIS-post",post_ais.tail(1)[0])
 
 # COMMAND ----------
 
@@ -434,8 +462,10 @@ cis_inf = (post_cis
     .select(F.length('_c0').alias('cis_longitud'))
     .groupBy('cis_longitud')
     .count())
-post_cis.orderBy('_c0',ascending=False).limit(1).display()
+
 cis_inf.display()
+print("Primera fila AIS-post",post_cis.first())
+print("Última fila AIS-post",post_cis.tail(1)[0])
 
 # COMMAND ----------
 
@@ -450,6 +480,7 @@ CIS Path:\t{cis_path}
 (horario UTC)"""[1:])
 (dirfiles_df(cis_path, spark)
     .loc[:, ['name', 'modificationTime', 'size']])
+
 
 # COMMAND ----------
 

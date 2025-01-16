@@ -3,6 +3,9 @@
 REQS_FILE = "../reqs.txt"
 REPOSITORY = "fraud_prevention"
 
+PATHS = {"qas":"fraud-prevention",
+         "prd":"data-ops-fraud-prevention"}
+
 TABLES = {REPOSITORY:{
                 "data_vault":["hub_client",
                             "sat_client_attrs",
@@ -19,3 +22,4 @@ TABLES = {REPOSITORY:{
         }
 
 # Finite Incantatem
+

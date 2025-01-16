@@ -23,7 +23,7 @@ class FunctionsTest():
     def __init__(self):
         pass
 
-    def get_user(self) -> dict:
+    def get_user_gh(self) -> dict:
         """La función obtine la información del usuario por medio de user_databricks"""
         usrs = "../user_databricks.json"
 
@@ -31,6 +31,11 @@ class FunctionsTest():
             info_json = json.load(file)
 
         return info_json
+
+    def get_user_note(self) -> dict:
+        """La función obtine la información del usuario por medio de user_databricks"""
+        user = dbutils.notebook.entry_point.getDbutils().notebook().getContext().tags().apply('user')
+        return user
 
     def get_abfss(self) -> str:
         """Se obtiene la dirección delm blob - no esta en uso dado que no se usan los blobs"""
