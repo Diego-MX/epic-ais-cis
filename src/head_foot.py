@@ -1,35 +1,19 @@
 """DX, 5 de septiembre de 2023
 Módulo para generar FlatFileInfo a modo de pruebas. 
 """
-from epic_py.delta import FlatFileInfo # pylint: disable=import-error
+from epic_py.delta import FlatFileInfo
 
 TEST_INFO = False
 
-meta_info = {"option":True, "vendor":"fiserv"}
+meta_info = dict(option=True, vendor="fiserv")
 
 lengths = (15, 10) if TEST_INFO else (1866, 1136)
 
-cust_opts = {
-    'filler'            : lengths[0], 
-    'layout_ver'        : 1.0, 
-    'filetype'          : 'CIS20', 
-    'system_id'         : 'PMAX'}
+cust_opts = dict(filler=lengths[0], layout_ver=1.0, filetype='CIS20', system_id='PMAX')
+acct_opts = dict(filler=lengths[1], layout_ver=1.0, filetype='AIS20', system_id='PMAX')
 
-acct_opts = {
-    'filler'            : lengths[1], 
-    'layout_ver'        : 1.0, 
-    'filetype'          : 'AIS20', 
-    'system_id'         : 'PMAX'}
-
-head_opts = {
-    'record_type'       : 'B', 
-    'data_feed_sort_key':  0, 
-    'append'            : -1}
-
-foot_opts = {
-    'record_type'       : 'E', 
-    'data_feed_sort_key': 10**9-1, 
-    'append'            : 1}
+head_opts = dict(record_type='B', data_feed_sort_key=0,       append=-1)
+foot_opts = dict(record_type='E', data_feed_sort_key=10**9-1, append= 1)
 
 headfooters = {
     ('customer', 'header'): {**meta_info, 'data': {**cust_opts, **head_opts}},

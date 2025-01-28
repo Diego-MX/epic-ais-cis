@@ -1,5 +1,3 @@
-# pylint: disable=missing-module-docstring
-import os
 
 REQS_FILE = '../pip_reqs.txt'
 USER_FILE = 'user_databricks.json'

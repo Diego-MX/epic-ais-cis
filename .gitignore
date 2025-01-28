@@ -1,6 +1,7 @@
 .env
 user_databricks.json
 
+.python-version
 .vscode
 **.pylintrc
 

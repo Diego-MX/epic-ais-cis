@@ -14,18 +14,17 @@
 
 # COMMAND ----------
 
+from datetime import datetime, timedelta
+import io
+
 from azure.identity import ClientSecretCredential
 from azure.storage.blob import (BlobServiceClient, BlobClient,ContainerClient)
-
+import pandas as pd
+import pyarrow as pa
+import pyarrow.feather as feather
 from pyspark.sql import SparkSession
 from pyspark.dbutils import DBUtils
 from toolz import dicttoolz as dtoolz
-import pandas as pd
-from datetime import datetime, timedelta
-
-import pyarrow.feather as feather
-import io
-import pyarrow as pa
 
 import config as cfg
 

@@ -1,20 +1,20 @@
 # epic-py @ git+https://${GH_ACCESS_TOKEN}@github.com/Bineo2/data-python-tools@gh-1.12
 
-azure-identity==1.12.0
-azure-keyvault-secrets==4.6.0
-azure-storage-blob==12.9.0
-coverage-badge~=1.1.0
-delta-spark==2.2.0
-ipython==8.10.0
-openpyxl==3.0.10 
-pytest==7.2.2
-pytest-cov==4.0.0
-python-dotenv==0.21.0
-# python==3.10 
-pyspark==3.3.2
-ruff==v0.0.260
-toolz==0.12.0
+# Dependencias que quedaron después de organizar las anteriores.  
+# Aún falta justificarlas. 
 
-
-
-
+# Las siguientes dependencias creemos que no son necesarias. 
+# python==3.10      Ya nos andamos confundiendo de versiones
+# pyspark           Mejor coordinar spark a través de Databricks-Connect
+# azure-identity    Ya la tenemos en EpicPy
+# azure-keyvault-secrets
+# azure-storage-blob    
+# coverage-badge    Coverage es aparte
+# delta-spark       * Databricks-Connect
+# ipython   		IPython es sólo para laboratorio interno. 
+# openpyxl		    * EpicPy
+# pytest		    Las pruebas son aparte
+# pytest-cov		Pruebas y coverage son aparte
+# python-dotenv		# EpicPy
+# ruff              Linter es parte
+# toolz		        # EpicPy

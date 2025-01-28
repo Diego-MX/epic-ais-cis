@@ -13,25 +13,19 @@
 
 # COMMAND ----------
 
-import dbks_dependencies as deps # pylint: disable=import-error
+# pylint: disable=expression-not-assigned
+# pylint: disable=invalid-name
+# pylint: disable=wrong-import-order
+# pylint: disable=wrong-import-position
+
+# COMMAND ----------
+
+import dbks_dependencies as deps
 
 deps.gh_epicpy('meetme-1',
     tokenfile='../user_databricks.json', typing=False, verbose=True)
 
 # COMMAND ----------
-
-# pylint: disable=consider-using-f-string
-# pylint: disable=expression-not-assigned
-# pylint: disable=invalid-name
-# pylint: disable=import-error
-# pylint: disable=no-name-in-module
-# pylint: disable=wrong-import-order
-# pylint: disable=non-ascii-module-import
-# pylint: disable=unused-import
-# pylint: disable=wrong-import-position
-# pylint: disable=unnecessary-lambda-assignment
-# pylint: disable=trailing-whitespace
-# pylint: disable=pointless-statement
 
 from datetime import datetime as dt
 from io import BytesIO
@@ -40,20 +34,20 @@ from pytz import timezone as tz
 
 import matplotlib.pyplot as plt
 import pandas as pd
-from pyspark.sql import functions as F, Row, SparkSession,DataFrame
+from pyspark.sql import Dataframe, functions as F, Row, SparkSession
 from pyspark.sql.functions import col, regexp_replace
 from pyspark.dbutils import DBUtils
-from toolz import pipe, remove
+from toolz import remove
 from toolz.curried import map as map_z
 
 from epic_py.delta import EpicDF, EpicDataBuilder, TypeHandler
-from epic_py.tools import dirfiles_df, partial2
+from epic_py.tools import dirfiles_df, partial2, thread
 
 from src import (app_agent, app_resourcer, app_abfss, app_path,
     dbks_tables, falcon_types, falcon_rename)
 from src.head_foot import headfooters
 
-from config import ENV # PARCHE MOMENTANEO DADO QUE LAS TABLAS SE MUEVEN >:l
+from config import ENV    # PARCHE MOMENTANEO DADO QUE LAS TABLAS SE MUEVEN >:l
 
 spark = SparkSession.builder.getOrCreate()
 dbutils = DBUtils(spark)
@@ -78,12 +72,12 @@ def replace_if(eq_val, rep_val):
     return (lambda xx: rep_val if xx == eq_val else xx)
 
 def get_time(a_tz="America/Mexico_City", time_fmt="%Y-%m-%d"):
-    """Obtención del tiempo"""
     return dt.now(tz=tz(a_tz)).strftime(format=time_fmt)
 
 date_str = lambda ss: dt.strptime(ss, '%Y-%m-%d').date()
 
-dates_by_env = {'qas': '2022-01-01', 'prd': '2023-05-01', None: '2023-01-01'}
+# dates_by_env = dict(qas='2022-01-01', prd='2023-05-01', _='2023-01-01')
+# Ya no se usa. 
 default_path = "../refs/upload-specs"
 
 dbutils.widgets.text('con_pagos', 'false', "Ejecutar PIS-Payment Info. Sec.")
@@ -174,7 +168,7 @@ dbks_tables['accounts']
 # COMMAND ----------
 
 # DBTITLE 1,Parche header
-def repair_dbks(df_last: DataFrame, df_ancestor:DataFrame, configuration: dict)-> DataFrame:
+def repair_dbks(df_last:DataFrame, df_ancestor:DataFrame, configuration:dict)-> DataFrame:
     """ La función solventa el movimiento del header en AIS después de la escritura, se extraen los
     headers y footers de la última transformación y se obtienen los datos por separado para unirlos 
     utilizando DataFrame de Pandas y postrtiormente convertirlos a un DataFrame de Spark.
@@ -190,8 +184,8 @@ def repair_dbks(df_last: DataFrame, df_ancestor:DataFrame, configuration: dict)-
     df_header = spark.createDataFrame([header], df_last.columns).toPandas()
     df_footer = spark.createDataFrame([footer], df_last.columns).toPandas()
 
-    df_combinate = pd.concat([df_header,df_accounts], ignore_index = True)
-    df_finally = pd.concat([df_combinate,df_footer], ignore_index = True)
+    df_combinate = pd.concat([df_header, df_accounts], ignore_index=True)
+    df_finally = pd.concat([df_combinate, df_footer], ignore_index=True)
     df_finally = spark.createDataFrame(df_finally)
 
     return EpicDF(df_finally)
@@ -278,8 +272,8 @@ ais_inf = (post_ais
     .count())
 
 ais_inf.display()
-print("Primera fila AIS-post",post_ais.first())
-print("Última fila AIS-post",post_ais.tail(1)[0])
+print("Primera fila AIS-post", post_ais.first())
+print("Última fila AIS-post", post_ais.tail(1)[0])
 
 # COMMAND ----------
 
@@ -314,17 +308,13 @@ AIS Path:\t{ais_path}
 
 # COMMAND ----------
 
-dbks_tables['clients']
-
-# COMMAND ----------
-
 agg_one = lambda cc: F.any_value(cc).alias(cc)
 
 def one_customers(df_0):
     """Se retiran los usuarios repetidos por los beneficiarios,
     :param df_0: DataFrame con los datos de interes"""
-    first_cols = pipe(df_0.columns,
-        partial2(remove, ϱ('startswith', ('client_id', 'ben_', 'kyc_')), ...),
+    first_cols = thread(df_0.columns,
+        (remove, ϱ('startswith', ('client_id', 'ben_', 'kyc_')), ...),
         map_z(agg_one))
     df_1 = df_0.groupBy('client_id').agg(*first_cols)
     return df_1
@@ -365,15 +355,13 @@ def clean_caracter(df_data):
     """Se retiran todos las comas y las comillas de los datos provenientes de dim_client
     :param df_data: Es el Dataframe que contiene los datos en cuestión
     """
-    df_clean = df_data.select([regexp_replace(col(column), '"',"")
-                               .alias(column) for column in df_data.columns])
-    df_return = df_clean.select([regexp_replace(col(column), ",", "")
-                                 .alias(column) for column in df_clean.columns])
+    df_clean = df_data.select([
+        regexp_replace(col(column), '"',"").alias(column) 
+        for column in df_data.columns])
+    df_return = df_clean.select([
+        regexp_replace(col(column), ",", "").alias(column) 
+        for column in df_clean.columns])
     return df_return
-
-# COMMAND ----------
-
-dbks_tables['clients']
 
 # COMMAND ----------
 
@@ -396,7 +384,7 @@ customers_specs.loc[1, 'column'] = 'modelSTUB' if w_stub else 'RBTRAN'
 cis_longname = '~'.join(row_name(rr) for _, rr in customers_specs.iterrows())
 cis_name = cis_longname if COL_DEBUG else 'cis-columna-fixed-width'
 
-name_onecol = '~'.join(row_name(rr)       # pylint: disable=invalid-name
+name_onecol = '~'.join(row_name(rr)
     for _, rr in customers_specs.iterrows())
 
 gender_df_2 = spark.createDataFrame([
@@ -478,6 +466,7 @@ cis_path = f"{app_abfss}/reports/customers/"
 print(f"""
 CIS Path:\t{cis_path}
 (horario UTC)"""[1:])
+
 (dirfiles_df(cis_path, spark)
     .loc[:, ['name', 'modificationTime', 'size']])
 
@@ -511,9 +500,7 @@ if haz_pagos:
         .with_column_plus(payments_extract['None']))
 
     payments_2 = payments_1.select(payments_loader)
-
     payments_3 = payments_2.select(payments_onecol)
-
     payments_3.display()
 
 # COMMAND ----------
