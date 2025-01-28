@@ -21,7 +21,6 @@ deps.install_reqs()
 
 # COMMAND ----------
 
-# pylint: disable=consider-using-f-string
 # pylint: disable=expression-not-assigned
 # pylint: disable=invalid-name
 # pylint: disable=import-error
@@ -42,7 +41,7 @@ from toolz import pipe, remove
 from toolz.curried import map as map_z
 
 from epic_py.delta import EpicDF, EpicDataBuilder, TypeHandler
-from epic_py.tools import dirfiles_df, partial2
+from epic_py.tools import dirfiles_df, partial2, thread
 
 
 from src import (app_agent, app_resourcer, app_abfss, app_path,
@@ -161,7 +160,7 @@ accounts_transform = (lambda accs_df: accs_df
 
 # COMMAND ----------
 
-dbks_tables['accounts']
+dbks_tables['accounts'].display()
 
 # COMMAND ----------
 
@@ -223,7 +222,8 @@ accounts_3.save_as_file(
 # MAGIC La columna original para tomar la información del cliente era `gld_client_file`.  
 # MAGIC Esta fue eliminada sin aviso y por eso empezó a fallar todo.  
 # MAGIC La tabla equivalente es `star_schema.dim_client`.  
-# MAGIC Aunque se supone que tiene más estructura que la anterior, la realidad es que no está bien hecha.  
+# MAGIC Aunque se supone que tiene más estructura que la anterior, 
+# MAGIC la realidad es que no está bien hecha.  
 # MAGIC
 # MAGIC El _hack_ se compone de lo siguiente:  
 # MAGIC * Mapeo de columnas `prep_columns`.  
@@ -235,8 +235,10 @@ accounts_3.save_as_file(
 agg_one = lambda cc: F.any_value(cc).alias(cc)
     
 def one_customers(df_0): 
-    first_cols = pipe(df_0.columns, 
-        partial2(remove, ϱ('startswith', ('client_id', 'ben_', 'kyc_')), ...), 
+    # remove( ϱ('startswith', ('client_id', 'ben_', 'kyc_')), df_0.columns )
+
+    first_cols = thread(df_0.columns, 
+        (remove, ϱ('startswith', ('client_id', 'ben_', 'kyc_')), ...), 
         map_z(agg_one))
     df_1 = df_0.groupBy('client_id').agg(*first_cols)
     return df_1
@@ -395,13 +397,14 @@ count = [ais_cnts,cis_cnts]
 long = [ais_long,cis_long]
 color = ["blue","red"]
 
-name2 = []; name3 = []
+name2 = []
+name3 = []
 
-for i in range(0,len(name),1):
-    name2.append(name[i]+" - "+str(count[i]))
-    name3.append(name[i]+" - "+str(long[i]))
+for i in range(0, len(name), 1):
+    name2.append(f"{name[i]} - {count[i]}")
+    name3.append(f"{name[i]} - {long[i]}")
     
-fig,ax = plt.subplots(1,2,figsize = (9,3),sharey = False)
+fig, ax = plt.subplots(1, 2, figsize=(9,3), sharey=False)
 ax[0].bar(name,count,label = name2, color = color)
 ax[0].legend()
 ax[1].bar(name,long,label = name3,color = color)

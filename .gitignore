@@ -6,6 +6,7 @@ user_databricks.json
 start_env.ps1
 .vscode
 .pylintrc
+.python-version
 
 # Cache de los sistemas.
 **__pycache__**
