@@ -1,6 +1,3 @@
-"""DX: September 5th, 2023
-Read specs from Excel file and upload to blob file. 
-"""
 # pylint: disable=invalid-name
 # pylint: disable=unsubscriptable-object 
 from datetime import datetime as dt

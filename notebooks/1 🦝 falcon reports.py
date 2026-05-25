@@ -37,11 +37,11 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from pyspark.sql import functions as F, Row, SparkSession
 from pyspark.dbutils import DBUtils     
-from toolz import pipe, remove
+from toolz import remove
 from toolz.curried import map as map_z
 
 from epic_py.delta import EpicDF, EpicDataBuilder, TypeHandler
-from epic_py.tools import dirfiles_df, partial2, thread
+from epic_py.tools import dirfiles_df, thread
 
 
 from src import (app_agent, app_resourcer, app_abfss, app_path,

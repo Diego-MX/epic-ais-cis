@@ -1,10 +1,16 @@
-[project]
+[tool.poetry]
 name = "fraud-prevention"
 version = "1.0"
+authors = ["Diego Villamil <diego.v@bineo.com>"]
+description = "Epic Tools for Epic Functionality"
+readme = "readme.md"
+license = "MIT" 
+homepage = "https://github.com/Bineo2/data-python-tools.git"
+packages = [{include = "epic_py", from="src"}]
 
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
 pythonpath = "." 
