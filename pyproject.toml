@@ -1,16 +1,29 @@
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
 [tool.poetry]
 name = "fraud-prevention"
 version = "1.0"
 authors = ["Diego Villamil <diego.v@bineo.com>"]
-description = "Epic Tools for Epic Functionality"
+description = "Fraud Prevention with Falcon"
 readme = "readme.md"
 license = "MIT" 
-homepage = "https://github.com/Bineo2/data-python-tools.git"
-packages = [{include = "epic_py", from="src"}]
+homepage = "https://github.com/Bineo2/data-ops-fraud-prevention.git"
 
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+[tool.poetry.dependencies]
+# epic-py @ git+https://${GH_ACCESS_TOKEN}@github.com/Bineo2/data-python-tools@gh-1.12
+
+[tool.pylint.typecheck]
+ignored-modules = []
+
+[tool.pylint."MESSAGES CONTROL"]
+disable = [
+  "consider-using-f-string", "missing-class-docstring", "missing-final-newline",
+  "missing-function-docstring", "missing-module-docstring",
+  "non-ascii-module-import", "non-ascii-name", "superfluous-parens",
+  "too-few-public-methods", "trailing-whitespace", "trailing-newlines", 
+  "unnecessary-lambda-assignment", "use-dict-literal", "useless-return"]
 
 [tool.pytest.ini_options]
 pythonpath = "." 

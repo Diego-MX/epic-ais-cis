@@ -1,5 +1,10 @@
-""" libreria Establecida por Databricks azure """
+"""
+Pruebas unitarias setup, 
+Estas pruebas tienen como finalidad de revisar que los insumos especificos del repositorio
+se encuentren habilitados y listos para ser utilizados.
+"""
 
+<<<<<<< HEAD:tests/test_dbks.py
 from io import BytesIO
 import json
 
@@ -10,20 +15,36 @@ from azure.core.exceptions import (ClientAuthenticationError, ResourceNotFoundEr
 from azure.identity import ClientSecretCredential
 from azure.keyvault.secrets import SecretClient, KeyVaultSecret
 import pandas as pd
+=======
+import warnings
+
+>>>>>>> dev-juan:test/test_setup.py
 from pyspark.dbutils import DBUtils
 from pyspark.sql import SparkSession
 import pytest
+<<<<<<< HEAD:tests/test_dbks.py
 from toolz import dicttoolz as dtoolz
 
 from epic_py.delta import EpicDF
 import config as cfg
 from src import dbks_tables, app_path, app_abfss
 from tests import ENV
+=======
+
+from function_t import FunctionsTest # pylint:disable = import-error
+import config as cfg # pylint: disable = import-error
+import config_t as cfg_t # pylint: disable = import-error
+
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+>>>>>>> dev-juan:test/test_setup.py
 
 spark = SparkSession.builder.getOrCreate()
 dbutils = DBUtils(spark)
 
+class TestRepository:
+    """Pruebas unitarias correspondientes al repositorio"""
 
+<<<<<<< HEAD:tests/test_dbks.py
 class TestConfig:
     """Pruebas unitarias de bajo nivel para notebook fraudes"""
     def get_principal(self): # Obtención de credenciales para poder acceder
@@ -137,47 +158,52 @@ class TestConfig:
                 assert isinstance(b_blob,BlobClient), "No es cliente del contenedor"
 
     def test_feather_accounts(self):
-        """Se verifica que la tabla contenga las columnas que índica el feather"""
-        pass
+=======
+    @pytest.fixture
+    def import_function(self):
+        "Llamado de la clase FunctionsTest"
+        return FunctionsTest()
 
-    def test_feather_costumers(self):
+    def test_feather_accounts_local(self,import_function):
+>>>>>>> dev-juan:test/test_setup.py
         """Se verifica que la tabla contenga las columnas que índica el feather"""
-        pass
-
-    def test_feather_paymonts(self):
-        """Se verifica que la tabla contenga las columnas que índica el feather"""
-        pass
-
-    def test_feather_col(self):
-        """No interesa porque sera removida"""
-        folder = dbutils.fs.ls(app_abfss+"/specs")
-        container = self.get_storage_client(None,"gold")
-        d_feathers = {}
-        d_tables = {}
+        # Obtención de datos provenientes del archivo feather
+        user = import_function.get_user_note()
+        data_feather = pd.read_feather(f"file:/Workspace/Repos/{user}"
+                                       f"/{cfg_t.PATHS[cfg.ENV]}/refs/upload-specs/accounts_cols.feather")
+        columns_feather = data_feather["columna"].tolist()
 
         # Extracción del nombre de las columnas de las tablas. Vienen de DBCKS
-        for tables_key, tables_name in cfg.DBKS_MAPPING.items():
-            tables = EpicDF(spark, dbks_tables[tables_key])
-            d_tables[tables_key] = tables.columns
-
-        # Extracción del nombre de las columnas de los feathers. Veinen de EXCEL
-        for file in folder:
-            if file.name.endswith("latest.feather"):
-                data = self.get_blob_df(container,file.name)
-                sep = file.name.split("_")
-
-                if "customers" in sep:
-                    key = "clients"
-                else:
-                    key = sep[0]
-
-                columns = data["columna"]
-                d_feathers[key] = columns.tolist()
+        name_table = cfg.DBKS_MAPPING["accounts"]
+        data_table = spark.read.table(cfg.ENV+"."+name_table)
+        columns_table = data_table.columns
 
         l_save = []
-        l_keep = []
+
+        for column in columns_feather:
+            if column in columns_table:
+                print(column)
+                l_save.append(column)
+
+        assert len(l_save)==2,"No se encontraron coincidencias en las columnas en AccountsLocal"
+
+    def test_feather_costumers_local(self,import_function):
+        """Se verifica que la tabla contenga las columnas que índica el feather"""
+        user = import_function.get_user_note()
+        # Obtención de datos provenientes del archivo feather
+        data_feather = pd.read_feather(f"file:/Workspace/Repos/{user}"
+                                       f"/{cfg_t.PATHS[cfg.ENV]}//refs/upload-specs/customers_cols.feather")
+        columns_feather = data_feather["columna"].tolist()
+
+        # Extracción del nombre de las columnas de las tablas. Vienen de DBCKS
+        name_table = cfg.DBKS_MAPPING["clients"]
+        data_table = spark.read.table(cfg.ENV+"."+name_table)
+        columns_table = data_table.columns
+
+        l_save = []
         l_special = ["addr_street","addr_external_number","kyc_id","kyc_answer"]
 
+<<<<<<< HEAD:tests/test_dbks.py
         for key, _ in d_feathers.items():
             if key != "payments":
                 for item in d_feathers[key]:
@@ -196,11 +222,37 @@ class TestConfig:
                 l_keep.append(l_save)
                 l_save = []
         duty = [1,18]
+=======
+        for column in columns_feather:
+            if column in columns_table or column in l_special:
+                l_save.append(column)
+            elif column == "x_address":
+                for i in range(0,2,1):
+                    l_save.append(l_special[i])
+            elif column in {"x_occupation", "x_src_income"}:
+                for i in range(2,4,1):
+                    l_save.append(l_special[i])
+>>>>>>> dev-juan:test/test_setup.py
 
-        for i in range(0,len(l_keep),1):
-            assert len(l_keep[i])==duty[i], "Fallo en las columnas"
+        assert len(l_save)==15, "No se encontraron coincidencias en las columnas"
 
+    def test_feather_paymonts_local(self,import_function):
+        """Se verifica que la tabla contenga las columnas que índica el feather"""
+        user = import_function.get_user_note()
+        # Obtención de datos provenientes del archivo feather
+        data_feather = pd.read_feather(f"file:/Workspace/Repos/{user}"
+                                       f"/{cfg_t.PATHS[cfg.ENV]}//refs/upload-specs/payments_cols.feather")
+        columns_feather = data_feather["columna"].tolist()
 
+<<<<<<< HEAD:tests/test_dbks.py
 class TestEpicPakcage: 
     pass 
 
+=======
+        # Extracción del nombre de las columnas de las tablas. Vienen de DBCKS
+        # No se cuenta con una tabla símil en databricks
+
+        assert columns_feather!=[],"No se encontro el feather paymonts"
+
+# Finite Incantatem
+>>>>>>> dev-juan:test/test_setup.py
