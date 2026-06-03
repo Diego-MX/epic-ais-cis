@@ -6,16 +6,7 @@
 
 # DBTITLE 1,EpicPy
 
-# pylint: disable=wrong-import-position
-# pylint: disable=import-error
-# pylint: disable=too-many-arguments
-# pylint: disable=line-too-long
-
-import dbks_dependencies as deps
-
-deps.gh_epicpy('meetme-1',
-    tokenfile='/Workspace/Repos/juan.v@bineo.com/fraud-prevention/user_databricks.json',
-    typing=False, verbose=True)
+%pip install /Workspace/Users/diego.v@bineo.com/wheels/epic_py/epic_py-1.2.1-133dbr-cp310-none-any.whl
 
 # COMMAND ----------
 

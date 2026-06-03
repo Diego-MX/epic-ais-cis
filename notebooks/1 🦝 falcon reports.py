@@ -53,13 +53,6 @@ w_get = dbutils.widgets.get
 row_name = lambda row: "{name}-{len}".format(**row)
 
 def replace_if(eq_val, rep_val):
-    """Remplaza el valor de acuerdo a la situación"""
-    # xx -> rep_val if xx == eq_val else xx
-    # xx -> if_else(rep_val, equal_to(eq_val)(xx), xx)
-    # xx -> if_else(constant(rep_val)(xx), equal_to(eq_val)(xx), identity(xx))
-    # xx -> if_else(*juxt(constant(rep_val), equal_to(eq_val), identity)(xx))
-    # compose(packed(if_else), juxt(constant(rep_val), equal_to(eq_val), identity))
-    # Más complicado 😒
     return (lambda xx: rep_val if xx == eq_val else xx)
 
 def get_time(a_tz="America/Mexico_City", time_fmt="%Y-%m-%d"):
@@ -392,7 +385,7 @@ if ENV == "qas":
 customers_1 = (one_customers(customers_0)
     .join(x_customers(customers_0), on='client_id')
     .with_column_plus(customers_extract['clients'])
-    #.with_column_plus(customers_extract['clients_x']) # no existe en blob
+    .with_column_plus(customers_extract['clients_x']) # no existe en blob
     .with_column_plus(customers_extract['_val'])
     .with_column_plus(customers_extract['None'])
     .join(gender_df_2, on='gender').drop('gender')
