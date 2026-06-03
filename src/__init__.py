@@ -1,5 +1,3 @@
-# SRC asume que EPICPY está instalado.
-
 from epic_py.platform import EpicIdentity
 import config as cfg
 
@@ -9,7 +7,7 @@ app_path = app_resourcer['storage-paths']['fraud']
 app_abfss = (app_resourcer.get_resource_url('abfss', 'storage',
         container='gold', blob_path=app_path))
 
-dbks_tables = {kk: f"{ENV}.{tt}"
+dbks_tables = {kk: f"{cfg.ENV}.{tt}"
     for kk, tt in cfg.DBKS_MAPPING.items()}
 
 falcon_types = {

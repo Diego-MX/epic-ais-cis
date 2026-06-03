@@ -1,3 +1,8 @@
+import os
+from dotenv import load_dotenv
+
+
+load_dotenv(override=True)
 
 REQS_FILE = '../pip_reqs.txt'
 USER_FILE = 'user_databricks.json'
@@ -75,4 +80,3 @@ else:
     'clients' : 'star_schema.dim_client',  # 
     'accounts': 'star_schema.current_account_x'}
 
-# Finite Incatatem

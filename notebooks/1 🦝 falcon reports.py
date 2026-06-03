@@ -13,17 +13,8 @@
 
 # COMMAND ----------
 
-# pylint: disable=expression-not-assigned
-# pylint: disable=invalid-name
-# pylint: disable=wrong-import-order
-# pylint: disable=wrong-import-position
-
-# COMMAND ----------
-
-import dbks_dependencies as deps
-
-deps.gh_epicpy('meetme-1',
-    tokenfile='../user_databricks.json', typing=False, verbose=True)
+%pip install /Workspace/Users/diego.v@bineo.com/wheels/epic_py/epic_py-1.2.1-133dbr-cp310-none-any.whl
+# deps.gh_epicpy('meetme-1', tokenfile='../user_databricks.json', typing=False, verbose=True)
 
 # COMMAND ----------
 
@@ -34,7 +25,7 @@ from pytz import timezone as tz
 
 import matplotlib.pyplot as plt
 import pandas as pd
-from pyspark.sql import Dataframe, functions as F, Row, SparkSession
+from pyspark.sql import DataFrame, functions as F, Row, SparkSession
 from pyspark.sql.functions import col, regexp_replace
 from pyspark.dbutils import DBUtils
 from toolz import remove
@@ -163,10 +154,6 @@ accounts_transform = (lambda accs_df: accs_df
 
 # COMMAND ----------
 
-dbks_tables['accounts'].display()
-
-# COMMAND ----------
-
 # DBTITLE 1,Parche header
 def repair_dbks(df_last:DataFrame, df_ancestor:DataFrame, configuration:dict)-> DataFrame:
     """ La función solventa el movimiento del header en AIS después de la escritura, se extraen los
@@ -229,7 +216,6 @@ accounts_1 = (accounts_0
     .with_column_plus(accounts_extract['None']))
 
 accounts_1.cache()
-accounts_1.count()
 
 accounts_2 = accounts_1.select_plus(accounts_loader)
 

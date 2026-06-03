@@ -6,18 +6,10 @@
 
 # DBTITLE 1,EpicPy
 
-# pylint: disable=trailing-whitespace
-# pylint: disable=wrong-import-order
 # pylint: disable=wrong-import-position
 # pylint: disable=import-error
-# pylint: disable=non-ascii-module-import
 # pylint: disable=too-many-arguments
-# pylint: disable=unnecessary-lambda-assignment
-# pylint: disable=unused-argument
-# pylint: disable=unused-import
 # pylint: disable=line-too-long
-# pylint: disable=no-name-in-module
-# pylint: disable=no-value-for-parameter
 
 import dbks_dependencies as deps
 

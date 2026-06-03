@@ -1,6 +1,3 @@
-"""DX, 5 de septiembre de 2023
-Módulo para generar FlatFileInfo a modo de pruebas. 
-"""
 from epic_py.delta import FlatFileInfo
 
 TEST_INFO = False

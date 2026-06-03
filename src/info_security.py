@@ -1,6 +1,3 @@
-"""DX: September 5th, 2023
-Read specs from Excel file and upload to blob file. 
-"""
 from datetime import datetime as dt
 import sys
 
@@ -11,6 +8,7 @@ from pytz import timezone
 from epic_py.tools import read_excel_table 
 from src import app_path, app_resourcer 
 
+FILE_REF = 'refs/upload-specs/Security_Info_260526.xlsx'
 cols_ref = (FILE_REF, 'Approach', 'fraud_cols')
 
 meta_cols = read_excel_table(*cols_ref).set_index('columna')
@@ -33,8 +31,7 @@ if __name__ == '__main__':
     data_ref = {
         'payments':  'PIS',
         'accounts':  'AIS',
-        'customers': 'CIS',
-        'payments':  'PIS', }
+        'customers': 'CIS' }
 
     a_ref, sheet = 'customers', 'CIS'
     for a_ref, sheet in data_ref.items():
@@ -49,9 +46,8 @@ if __name__ == '__main__':
         as_fthr = prepare_excelref(pd_ref)
         as_fthr.to_feather(ref_file)
 
-        app_resourcer.upload_storage_blob(
-            ref_file, blob_0, 'gold', overwrite=True, verbose=1)
-        app_resourcer.upload_storage_blob(
-            ref_file, blob_1, 'gold', overwrite=True, verbose=1)
+        # app_resourcer.upload_storage_blob(
+        #     ref_file, blob_0, 'gold', overwrite=True, verbose=1)
+        # app_resourcer.upload_storage_blob(
+        #     ref_file, blob_1, 'gold', overwrite=True, verbose=1)
 
-# Finite Incantatem

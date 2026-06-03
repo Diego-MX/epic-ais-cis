@@ -1,5 +1,6 @@
 # Configuraciones del proyecto, secretos y nombres de secretos.
 .env
+.envrc
 user_databricks.json
 .venv
 
